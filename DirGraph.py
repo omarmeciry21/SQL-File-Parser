@@ -1,7 +1,7 @@
 import json
 import os
-from graphviz import Digraph
 import graphviz
+from graphviz import Digraph
 
 def GetGraph(dirassoc):
     #Uses the assoc file to create a directed graph representing those associations.
@@ -26,10 +26,10 @@ def GetGraph(dirassoc):
 
         if t not in tables:
             tables.append(t)
-            
+
         if o not in objs:
             objs.append(o)
-        
+
 
     print(len(tables),len(objs))
 
@@ -46,10 +46,10 @@ def GetGraph(dirassoc):
                 graph[t][o] = 3
             elif (objs[o][0],objs[o][1],tables[t][0],tables[t][1],"None") in tuples:
                 graph[t][o] = 4
-    
+
     return graph, tables, objs
 
-    
+
 def PrintGraph(graph, tables, objs, spline, neato, name):
     #Take the graph object (a 2D array representing connections) and convert it to a dot style Directed graph.
     dot = Digraph(name+".D")
@@ -87,7 +87,7 @@ def PrintGraph(graph, tables, objs, spline, neato, name):
     if neato:
         dot.graph_attr['layout'] = "neato"
 
-    
+
     dot.format = 'svg'
     dot.render(view=True)
 

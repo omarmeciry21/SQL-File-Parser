@@ -10,7 +10,7 @@ def guess_encoding(file):
     #Pass a file and it will return the type of encoding to use, as .sql files are encoded and can be in multiple ways.
     with io.open(file, "rb") as f:
         data = f.read(5)
-        
+
     if data.startswith(b"\xEF\xBB\xBF"):
         return "utf-8-sig"
     elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"):
@@ -26,7 +26,7 @@ def create_query_string(sql_file):
     #Takes a file and will parse it out into one giant string.
     #Uses guess_encoding to find the proper encoding to use to decode the file.
     with open(sql_file, 'r', encoding=guess_encoding(sql_file)) as f_in:
-        lines = f_in.read()  
+        lines = f_in.read()
         query_string = textwrap.dedent("""{}""".format(lines))
         return query_string
 
@@ -36,7 +36,7 @@ def getLines(filedir):
     sql = create_query_string(filedir)
 
     sql = re.sub(re.compile(r"/\*.*?\*/",re.DOTALL),"",sql)#Replaces all text between comment lines with empty string.
-    
+
     lines = []
     line = ""
 
@@ -63,10 +63,10 @@ def makeDic(series, dic):
     if len(series) == 2:
         dic[series[0]] = series[1]
         return dic
-    
+
     if series[0] not in dic:
         dic[series[0]] = {}
-        
+
     dic[series[0]] = makeDic(series[1:], dic[series[0]])
 
     return dic
@@ -77,7 +77,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
     #we find within that select statement are somewhat correlated, and draw connections between
     #them in a graphviz undirected graph. We display this to user and save it to disk. It can in
     #future be converted to a networkx graph easily to allow for graphical analysis to be performed.
-    
+
     lines = getLines(filedir)
 
     #The current list of regular expressions used to match tables. Needs to be expanded to account for all
@@ -131,7 +131,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
             for line in range(i+1,len(lines)):
                 #Look for select
                 select = re.search(r'select',lines[line],re.I)
-                
+
                 if select:
                     #We want to see if this select contains a join, and always record all table references we find.
 
@@ -218,9 +218,9 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                                 #select statement and all joined together.
 
                                 #We simply go through tab[] and use dot.node(), then specify the:
-                                    #label - What is shown on the graph
-                                    #id - What is used to connect the nodes
-                                    #color - the color corresponding to the parent object.
+                                #label - What is shown on the graph
+                                #id - What is used to connect the nodes
+                                #color - the color corresponding to the parent object.
                                 #The conn condition refers to whether we want the same table, if referenced by multiple objects
                                 #to only occupy one node, or whether we want each object's reference to that table to be its own
                                 #node. We do this by either making the nodeid (what is used to determine unique nodes) simply the
@@ -233,7 +233,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                                     else:
                                         nodeid = t.lower()+'\n'+currobj
                                         nodelabel = t+'\n'+currobj
-                                        
+
                                     dot.node(nodeid, nodelabel, color = colors[col])
 
                                 #Now we go through in a double loop, adding edges for each possible. Duplicates are automatically filtered
@@ -256,7 +256,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                                             else:
                                                 dot.edge(node1id,node2id, color = colors[col])
 
-                                
+
 
                             break
 
@@ -270,7 +270,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
     #Neato attempts to spread out the graph as spherical as possible. It is a user option in the GUI.
     if neato:
         dot.graph_attr['layout'] = "neato"
-    
+
     dot.format = 'svg'
     dot.render(view=True)
     #This graph is saved, but it is here automatically rendered to the user in svg format.
@@ -335,21 +335,21 @@ def findRef(regex, line, lines, endcon):
                     break
 
                 j = j - 1
-                
+
             #Now we need to take the list of tables found on this individual line and simplit them all up into the proper formatting.
             for f in range(len(find)):
                 midchar = re.findall(r'\](.)\[',find[f], re.I)
                 for c in midchar:
                     if c != '.':
                         continue
-                    
+
                 s = re.findall(r'\[(.+?)\]', find[f], re.I)
 
                 if not s:
                     s = re.split(r'\.', find[f], re.I)
 
                 s.append("None")#We append "none" for now, we will replace this later with the proper word.
-                
+
                 dic = makeDic(s, dic)#Calls the recursive function. See it for formatting details.
 
         #If we find the endcon or "GO" we know this object has ended, and we make break.
@@ -397,15 +397,15 @@ def assocTable(dic):
     #This will use the referenced found in findRef to mark down connections between tables and
     #the objects that reference them.
     assoc = {}
-    
+
     table = dic["Table"]
     view = dic["View"]
     other = {}
-    
+
     for d in dic:
         if d != "Table" and d != "Assoc":
             other[d] = dic[d]
-  
+
     for key in other:
         #For each of the data types create a dict
         assoc[key] = {}
@@ -446,7 +446,7 @@ def assocTable(dic):
                 #print(typ,obj,table)
 
                 #Assoc1 in format of Table:Type:Object of that Type that references that table
-                
+
                 if table not in assoc1.keys():
                     assoc1[table] = {}
 
@@ -456,7 +456,7 @@ def assocTable(dic):
                 if obj not in assoc1[table][typ].keys():
                     assoc1[table][typ][obj] = {}
                     assoc1[table][typ][obj] = assoc[typ][obj][table]
-    
+
     dual["TopDown"] = assoc
     dual["BottomUp"] = assoc1
 
@@ -484,7 +484,7 @@ def removeInvalid(dic, table):
                                 todel.append(d)
                         else:
                             continue
-                    
+
                     continue
 
                 for ref2 in dic[db][obj][ref]:
@@ -494,7 +494,7 @@ def removeInvalid(dic, table):
                         d = [db,obj,ref]
                         if d not in todel:
                             todel.append(d)
-                            
+
     #Remove all of the invalid entries from dic based on what we have inserted into todel[].
     for d in todel:
         try:
@@ -504,7 +504,7 @@ def removeInvalid(dic, table):
             continue
 
     #Return the pruned dictionary.
-    return dic    
+    return dic
 
 def findTables(filedir):
     #Parse through the program, look for CREATE TABLE statements.
@@ -514,25 +514,32 @@ def findTables(filedir):
     print("Finding tables in",filedir)
 
     lines = getLines(filedir)#Get the list of lines from the .sql file.
-    
-    tables = {}#Create a dict to hold the dicts of tables.
 
+    tables = {}#Create a dict to hold the dicts of tables.
+    count=0
     print("Searching lines for table creations...")
     for i in range(len(lines)):
-        match = re.match(r'\s*CREATE\s+TABLE\s+(\[.+\]).(\[.+\])',lines[i],re.I)
+        match = re.match(r'\bCREATE\s+TABLE\s+((?!.+\..+)(\[?.+\]?)|(\[.+\]).(\[.+\])|(\[.+\]).(\[.+\]).(\[.+\]))',lines[i],re.I|re.VERBOSE)
+
         if match:
-            db = match.group(1)
-            db = db.replace('[','')
-            db = db.replace(']','')
-            table = match.group(2)
-            table = table.replace('[','')
-            table = table.replace(']','')
-            if db in tables:
+            count+=1
+            db = match.group(3)
+            if db:
+                db = db.replace('[','')
+                db = db.replace(']','')
+            table = match.group(4)
+            if table:
+                table = table.replace('[','')
+                table = table.replace(']','')
+            if db and table and db in tables:
                 tables[db][table] = {}
-            else:
+            elif db and table :
                 tables[db] = {}
                 tables[db][table] = {}
-
+            elif table:
+                tables[table] ={}
+    # print(tables)
+    print('Number of tables:' + str(count))
     return tables
 
 def findViews(filedir):
@@ -545,15 +552,17 @@ def findViews(filedir):
     print("Finding views in",filedir)
 
     lines = getLines(filedir)#Get the list of lines from the .sql file.
-            
-    views = {}#Create a dict to hold the nested dict of views.
 
+    views = {}#Create a dict to hold the nested dict of views.
+    count = 0
     print("Searching lines for views creations...")
     for i in range(len(lines)):
         #Search until we find a CREATE VIEW statement
-        match = re.match(r'\s*CREATE\s+VIEW\s+(\[.+\]).(\[.+\])',lines[i],re.I)
-            
+        match = re.match(r'\bCREATE\s+VIEW\s+((?!.+\..+)(\[?.+\]?)|(\[.+\]).(\[.+\])|(\[.+\]).(\[.+\]).(\[.+\]))',lines[i],re.I)
+
+
         if match:
+            count += 1
             #Once we find a view, we need to look forward to find all table references.
             #Look to the findRef function for details. FindRef and the regex used are the
             #most obvious points of improvement for this program.
@@ -561,7 +570,7 @@ def findViews(filedir):
             #Create a dict for each of these, then use the built in parameter | to combine them
             #Preferring three part to two part, to make sure [One].[Two] is not preferred to [One].[Two].[Three]
             f = {}
-            
+
             f2normal = findRef(r'(?<!\S)\w+\.\w+(?!\S)',i,lines,r"GO")
             f3normal = findRef(r'(?<!\S)\w+\.\w+\.\w+(?!\S)',i,lines,r"GO")
             f2 = findRef(r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',i,lines,r"GO")
@@ -571,7 +580,7 @@ def findViews(filedir):
             f = f | f2normal
             f = f | f3normal
             f = f2 | f3
-            
+
             if f4:
                 f = f | f4
 
@@ -579,19 +588,26 @@ def findViews(filedir):
             #v is the name of the view
             #froms is the set of tables referenced by view v
             #therefore views[db][v] will contain the tables referenced by view v
-            db = match.group(1)
-            db = db.replace('[','')
-            db = db.replace(']','')
-            v = match.group(2)
-            v = v.replace('[','')
-            v = v.replace(']','')
-            
-            if db in views:
+
+            # print(match.groups())
+            db = match.group(3)
+            if db:
+                db = db.replace('[','')
+                db = db.replace(']','')
+            v = match.group(4)
+            if v:
+                v = v.replace('[','')
+                v = v.replace(']','')
+
+            if db and v and db in views:
                 views[db][v] = f
-            else:
+            elif db and v:
                 views[db] = {}
                 views[db][v] = f
-    
+            elif v:
+                views[v] = f
+
+    print('Number of views: '+str(count))
     return views
 
 def findFunctions(filedir):
@@ -600,9 +616,9 @@ def findFunctions(filedir):
     #I thought it was more likely that there would be severe differences between the syntaxes
     #of the different objects, but they are all practically identical.
     print("Finding functions in",filedir)
-    
+
     lines = getLines(filedir)
-            
+
     functions = {}
 
     write = False
@@ -627,7 +643,7 @@ def findFunctions(filedir):
                 end = re.match(r'END',lines[j])
                 if(end):
                     break
-                
+
                 insert = re.search(r'INSERT',lines[j],re.I)
                 if insert:
                     write = True
@@ -651,20 +667,20 @@ def findFunctions(filedir):
 
             write = False
             read = False
-            
+
             db = match.group(1)
             db = db.replace('[','')
             db = db.replace(']','')
             function = match.group(2)
             function = function.replace('[','')
             function = function.replace(']','')
-            
+
             if db in functions:
                 functions[db][function] = f
             else:
                 functions[db] = {}
                 functions[db][function] = f
-    
+
     return functions
 
 def findProcedures(filedir):
@@ -673,9 +689,9 @@ def findProcedures(filedir):
     #I thought it was more likely that there would be severe differences between the syntaxes
     #of the different objects, but they are all practically identical.
     print("Finding procedures in",filedir)
-    
+
     lines = getLines(filedir)
-            
+
     procedures = {}
 
     write = False
@@ -700,7 +716,7 @@ def findProcedures(filedir):
                 end = re.match(r'END',lines[j][0:3])
                 if(end):
                     break
-                
+
                 insert = re.search(r'INSERT',lines[j],re.I)
                 if insert:
                     write = True
@@ -724,20 +740,20 @@ def findProcedures(filedir):
 
             write = False
             read = False
-            
+
             db = match.group(1)
             db = db.replace('[','')
             db = db.replace(']','')
             procedure = match.group(2)
             procedure = procedure.replace('[','')
             procedure = procedure.replace(']','')
-            
+
             if db in procedures:
                 procedures[db][procedure] = f
             else:
                 procedures[db] = {}
                 procedures[db][procedure] = f
-    
+
     return procedures
 
 def findTriggers(filedir):
@@ -746,9 +762,9 @@ def findTriggers(filedir):
     #I thought it was more likely that there would be severe differences between the syntaxes
     #of the different objects, but they are all practically identical.
     print("Finding triggers in",filedir)
-    
+
     lines = getLines(filedir)
-            
+
     triggers = {}
 
     write = False
@@ -774,7 +790,7 @@ def findTriggers(filedir):
                 end = re.match(r'END',lines[j][0:3])
                 if(end):
                     break
-                
+
                 insert = re.search(r'INSERT',lines[j],re.I)
                 if insert:
                     write = True
@@ -798,14 +814,14 @@ def findTriggers(filedir):
 
             write = False
             read = False
-            
+
             db = match.group(1)
             db = db.replace('[','')
             db = db.replace(']','')
             trigger = match.group(2)
             trigger = trigger.replace('[','')
             trigger = trigger.replace(']','')
-            
+
             if db in triggers:
                 triggers[db][trigger] = f
             else:
@@ -851,7 +867,7 @@ def main():
     print("SQL File to be parsed located at",filedir)
 
     sql = {}
-    
+
     for arg in args:
         currdict = disam(arg[2:], filedir)
         print(os.path.splitext(filedir)[0])
