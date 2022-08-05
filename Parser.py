@@ -399,7 +399,7 @@ def assocTable(dic):
     assoc = {}
 
     table = dic["Table"]
-    view = dic["View"]
+    # view = dic["View"]
     other = {}
 
     for d in dic:
@@ -519,23 +519,45 @@ def findTables(filedir):
     count=0
     print("Searching lines for table creations...")
     for i in range(len(lines)):
-        match = re.match(r'\bCREATE\s+TABLE\s+((?!.+\..+)(\[?.+\]?)|(\[.+\]).(\[.+\])|(\[.+\]).(\[.+\]).(\[.+\]))',lines[i],re.I|re.VERBOSE)
+        match = re.match(r'\bCREATE\s+TABLE\s+((?!.+\..+)(?P<table_1>\[?\S+\]?)|(?P<schema_1>\[?\S+\]?)\.(?P<table_2>\[?\S+\]?)|(?P<db>\[?\S+\]?)\.(?P<schema_2>\[?\S+\]?)\.(?P<table_3>\[?\S+\]?))',lines[i],re.I|re.VERBOSE)
 
         if match:
             count+=1
-            db = match.group(3)
-            if db:
-                db = db.replace('[','')
-                db = db.replace(']','')
-            table = match.group(4)
+
+            schema= match.group('schema_1')
+            if match.group('schema_2'):
+                schema=match.group('schema_2')
+
+            if schema:
+                schema = schema.replace('[','')
+                schema = schema.replace(']','')
+
+            table = match.group('table_1')
+            if match.group('table_2'):
+                table = match.group('table_2')
+            elif match.group('table_3'):
+                table = match.group('table_3')
+
             if table:
                 table = table.replace('[','')
                 table = table.replace(']','')
-            if db and table and db in tables:
-                tables[db][table] = {}
-            elif db and table :
-                tables[db] = {}
-                tables[db][table] = {}
+
+            db = match.group('db')
+
+            if db:
+                db =db.replace('[','')
+                db =db.replace(']','')
+                if db not in tables:
+                    tables[db] = {}
+
+            if db and schema and table:
+                if schema not in tables[db]:
+                    tables[db][schema] ={}
+                tables[db][schema][table] ={}
+            elif schema and table:
+                if schema not in tables:
+                    tables[schema] = {}
+                tables[schema][table] = {}
             elif table:
                 tables[table] ={}
     # print(tables)
@@ -558,7 +580,7 @@ def findViews(filedir):
     print("Searching lines for views creations...")
     for i in range(len(lines)):
         #Search until we find a CREATE VIEW statement
-        match = re.match(r'\bCREATE\s+VIEW\s+((?!.+\..+)(\[?.+\]?)|(\[.+\]).(\[.+\])|(\[.+\]).(\[.+\]).(\[.+\]))',lines[i],re.I)
+        match = re.match(r'\bCREATE\s+VIEW\s+((?!.+\..+)(?P<view_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<view_2>\[?\S+\]?))',lines[i],re.I|re.VERBOSE)
 
 
         if match:
@@ -590,22 +612,26 @@ def findViews(filedir):
             #therefore views[db][v] will contain the tables referenced by view v
 
             # print(match.groups())
-            db = match.group(3)
-            if db:
-                db = db.replace('[','')
-                db = db.replace(']','')
-            v = match.group(4)
-            if v:
-                v = v.replace('[','')
-                v = v.replace(']','')
+            schema= match.group('schema')
 
-            if db and v and db in views:
-                views[db][v] = f
-            elif db and v:
-                views[db] = {}
-                views[db][v] = f
-            elif v:
-                views[v] = f
+            if schema:
+                schema = schema.replace('[','')
+                schema = schema.replace(']','')
+
+            view = match.group('view_1')
+            if match.group('view_2'):
+                view = match.group('view_2')
+
+            if view:
+                view = view.replace('[','')
+                view = view.replace(']','')
+
+            if schema and view:
+                if schema not in views:
+                    views[schema] = {}
+                views[schema][view] = f
+            elif view:
+                views[view] =f
 
     print('Number of views: '+str(count))
     return views
@@ -624,11 +650,14 @@ def findFunctions(filedir):
     write = False
     read = False
     tag = ""
+    count = 0
 
     print("Searching lines for function creations...")
     for i in range(len(lines)):
-        match = re.match(r'\s*CREATE\s+FUNCTION\s+(\[.+\]).(\[.+?\])',lines[i],re.I)
+        match = re.match(r'\bCREATE\s+FUNCTION\s+((?!.+\..+)(?P<func_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<func_2>\[?\S+\]?))',lines[i],re.I|re.VERBOSE)
         if match:
+            count += 1
+
             f = {}
             f2 = findRef(r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',i,lines,r"END")
             f3 = findRef(r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',i,lines,r"END")
@@ -668,19 +697,29 @@ def findFunctions(filedir):
             write = False
             read = False
 
-            db = match.group(1)
-            db = db.replace('[','')
-            db = db.replace(']','')
-            function = match.group(2)
-            function = function.replace('[','')
-            function = function.replace(']','')
+            schema= match.group('schema')
 
-            if db in functions:
-                functions[db][function] = f
-            else:
-                functions[db] = {}
-                functions[db][function] = f
+            if schema:
+                schema = schema.replace('[','')
+                schema = schema.replace(']','')
 
+            func = match.group('func_1')
+            if match.group('func_2'):
+                func = match.group('func_2')
+
+            if func:
+                func =func.replace('[','')
+                func = func.replace(']','')
+
+
+            if schema and func:
+                if schema not in functions:
+                    functions[schema] = {}
+                functions[schema][func] = f
+            elif func:
+                functions[func] = f
+
+    print("Number of Functions: "+str(count))
     return functions
 
 def findProcedures(filedir):
@@ -697,11 +736,13 @@ def findProcedures(filedir):
     write = False
     read = False
     tag = ""
+    count = 0
 
     print("Searching lines for procedure creations...")
     for i in range(len(lines)):
-        match = re.match(r'\s*CREATE\s+PROC\w*\s+(\[.+\]).(\[.+?\])',lines[i],re.I)
+        match = re.match(r'\bCREATE\s+(?:PROC|PROCEDURE)\w*\s+((?!.+\..+)(?P<proc_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<proc_2>\[?\S+\]?))',lines[i],re.I)
         if match:
+            count +=1
             f = {}
             f2 = findRef(r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',i,lines,r"END")
             f3 = findRef(r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',i,lines,r"END")
@@ -741,19 +782,28 @@ def findProcedures(filedir):
             write = False
             read = False
 
-            db = match.group(1)
-            db = db.replace('[','')
-            db = db.replace(']','')
-            procedure = match.group(2)
-            procedure = procedure.replace('[','')
-            procedure = procedure.replace(']','')
+            schema= match.group('schema')
 
-            if db in procedures:
-                procedures[db][procedure] = f
-            else:
-                procedures[db] = {}
-                procedures[db][procedure] = f
+            if schema:
+                schema = schema.replace('[','')
+                schema = schema.replace(']','')
 
+            proc = match.group('proc_1')
+            if match.group('proc_2'):
+                proc = match.group('proc_2')
+
+            if proc:
+                proc =proc.replace('[','')
+                proc = proc.replace(']','')
+
+            if proc and schema:
+                if schema not in procedures:
+                    procedures[schema] = {}
+                procedures[schema][proc] = f
+            elif proc:
+                procedures[proc] = f
+
+    print("Number of Proceduers: "+str(count))
     return procedures
 
 def findTriggers(filedir):
@@ -770,11 +820,13 @@ def findTriggers(filedir):
     write = False
     read = False
     tag = ""
+    count = 0
 
     print("Searching lines for trigger creations...")
     for i in range(len(lines)):
-        match = re.match(r'\s*CREATE\s+TRIGGER\s+(\[.+\]).(\[.+?\])',lines[i],re.I)
+        match = re.match(r'\bCREATE\s+TRIGGER\s+((?!.+\..+)(?P<trig_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<trig_2>\[?\S+\]?))',lines[i],re.I)
         if match:
+            count+=1
             f = {}
             f2 = findRef(r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',i,lines,r"END")
             f3 = findRef(r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',i,lines,r"END")
@@ -815,19 +867,29 @@ def findTriggers(filedir):
             write = False
             read = False
 
-            db = match.group(1)
-            db = db.replace('[','')
-            db = db.replace(']','')
-            trigger = match.group(2)
-            trigger = trigger.replace('[','')
-            trigger = trigger.replace(']','')
 
-            if db in triggers:
-                triggers[db][trigger] = f
-            else:
-                triggers[db] = {}
-                triggers[db][trigger] = f
+            schema= match.group('schema')
 
+            if schema:
+                schema = schema.replace('[','')
+                schema = schema.replace(']','')
+
+            trig = match.group('trig_1')
+            if match.group('trig_2'):
+                trig = match.group('trig_2')
+
+            if trig:
+                trig = trig.replace('[','')
+                trig = trig.replace(']','')
+
+            if trig and schema:
+                if schema not in triggers:
+                    triggers[schema] = {}
+                triggers[schema][trig] = f
+            elif trig:
+                triggers[trig] = f
+
+    print("Number of TRIGGERS: "+str(count))
     return triggers
 
 def disam(command, filedir):
