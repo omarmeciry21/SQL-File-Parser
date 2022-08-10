@@ -5,6 +5,13 @@ import re
 import textwrap
 import locale
 import io
+from graphviz import Graph
+
+createTableRegex = r'\bCREATE\s+TABLE\s+((?!.+\..+)(?P<table_1>\[?[^\(\)\s]+\]?)|(?P<schema_1>\[?\S+\]?)\.(?P<table_2>\[?[^\(\)\s]+\]?)|(?P<db>\[?\S+\]?)\.(?P<schema_2>\[?\S+\]?)\.(?P<table_3>\[?[^\(\)\s]+\]?))'
+createViewRegex=r'\bCREATE\s+VIEW\s+((?!.+\..+)(?P<view_1>\[?[^\(\)\s]+\]?)|(?P<schema>\[?\S+\]?)\.(?P<view_2>\[?[^\(\)\s]+\]?))'
+createFunctionRegex = r'\bCREATE\s+FUNCTION\s+((?!.+\..+)(?P<func_1>\[?[^\(\)\s]+\]?)|(?P<schema>\[?\S+\]?)\.(?P<func_2>\[?[^\(\)\s]+\]?))'
+createProcedureRegex = r'\bCREATE\s+(?:PROC|PROCEDURE)\w*\s+((?!.+\..+)(?P<proc_1>\[?[^\(\)\s]+\]?)|(?P<schema>\[?\S+\]?)\.(?P<proc_2>\[?[^\(\)\s]+\]?))'
+createTriggerRegex = r'\bCREATE\s+TRIGGER\s+((?!.+\..+)(?P<trig_1>\[?[^\(\)\s]+\]?)|(?P<schema>\[?\S+\]?)\.(?P<trig_2>\[?[^\(\)\s]+\]?))'
 
 def guess_encoding(file):
     #Pass a file and it will return the type of encoding to use, as .sql files are encoded and can be in multiple ways.
@@ -97,35 +104,43 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
     currobj = ""
     objs = []
 
-    from graphviz import Graph
-
     #Graph object that holds our graph.
     dot = Graph(name+".T", strict=True)
 
     #Iterate through all of the lines of the sql file, looking for create statements for each of the objects we are looking for.
     for i in range(len(lines)):
-        matchV = re.match(r'\s*CREATE\s+VIEW\s+(\[.+\]).(\[.+\])\s',lines[i],re.I)
-        matchF = re.match(r'\s*CREATE\s+FUNCTION\s+(\[.+\]).(\[.+\])\s',lines[i],re.I)
-        matchP = re.match(r'\s*CREATE\s+PROC\s+(\[.+\]).(\[.+\])\s',lines[i],re.I)
-        matchT = re.match(r'\s*CREATE\s+TRIGGER\s+(\[.+\]).(\[.+\])\s',lines[i],re.I)
+        matchV = re.match(createViewRegex,lines[i],re.I)
+        matchF = re.match(createFunctionRegex,lines[i],re.I)
+        matchP = re.match(createProcedureRegex,lines[i],re.I)
+        matchT = re.match(createTriggerRegex,lines[i],re.I)
 
         if matchV or matchF or matchP or matchT:
             #When we find a match, record the name of the object so we can later know what object is creating these joins.
             if matchV:
-                currobj = matchV.group(1)+'.'+matchV.group(2)
+                if matchV.group('view_1'):
+                    currobj = matchV.group('view_1')
+                else:
+                    currobj = matchV.group('schema')+'.'+matchV.group('view_2')
             elif matchP:
-                currobj = matchP.group(1)+'.'+matchP.group(2)
+                if matchV.group('proc_1'):
+                    currobj = matchV.group('proc_1')
+                else:
+                    currobj = matchP.group('schema')+'.'+matchP.group('proc_2')
             elif matchF:
-                currobj = matchF.group(1)+'.'+matchF.group(2)
+                if matchV.group('func_1'):
+                    currobj = matchV.group('func_1')
+                else:
+                    currobj = matchF.group('schema')+'.'+matchF.group('func_2')
             elif matchT:
-                currobj = matchT.group(1)+'.'+matchT.group(2)
+                if matchV.group('trig_1'):
+                    currobj = matchV.group('trig_1')
+                else:
+                    currobj = matchT.group('schema')+'.'+matchT.group('trig_2')
 
             #Handle selecting a color for this object.
             if currobj not in objs:
                 objs.append(currobj)
-                col = objs.index(currobj) % len(colors)
-            else:
-                col = objs.index(currobj) % len(colors)
+            col = objs.index(currobj) % len(colors)
 
             #Look through all the lines in the declaration of this object.
             for line in range(i+1,len(lines)):
@@ -603,7 +618,7 @@ def assocTable(dic):
     assoc = {}
 
     table = dic["Table"]
-    # view = dic["View"]
+    view = dic["View"]
     other = {}
 
     for d in dic:
@@ -723,7 +738,7 @@ def findTables(filedir):
     count=0
     print("Searching lines for table creations...")
     for i in range(len(lines)):
-        match = re.match(r'\bCREATE\s+TABLE\s+((?!.+\..+)(?P<table_1>\[?\S+\]?)|(?P<schema_1>\[?\S+\]?)\.(?P<table_2>\[?\S+\]?)|(?P<db>\[?\S+\]?)\.(?P<schema_2>\[?\S+\]?)\.(?P<table_3>\[?\S+\]?))',lines[i],re.I|re.VERBOSE)
+        match = re.match(createTableRegex,lines[i],re.I|re.VERBOSE|re.MULTILINE)
 
         if match:
             count+=1
@@ -766,6 +781,7 @@ def findTables(filedir):
                 tables[table] ={}
     # print(tables)
     print('Number of tables:' + str(count))
+    print(tables)
     return tables
 
 def findViews(filedir):
@@ -784,7 +800,7 @@ def findViews(filedir):
     print("Searching lines for views creations...")
     for i in range(len(lines)):
         #Search until we find a CREATE VIEW statement
-        match = re.match(r'\bCREATE\s+VIEW\s+((?!.+\..+)(?P<view_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<view_2>\[?\S+\]?))',lines[i],re.I|re.VERBOSE)
+        match = re.match(createViewRegex,lines[i],re.I|re.VERBOSE)
 
 
         if match:
@@ -858,7 +874,7 @@ def findFunctions(filedir):
 
     print("Searching lines for function creations...")
     for i in range(len(lines)):
-        match = re.match(r'\bCREATE\s+FUNCTION\s+((?!.+\..+)(?P<func_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<func_2>\[?\S+\]?))',lines[i],re.I|re.VERBOSE)
+        match = re.match(createFunctionRegex,lines[i],re.I|re.VERBOSE)
         if match:
             count += 1
 
@@ -944,7 +960,7 @@ def findProcedures(filedir):
 
     print("Searching lines for procedure creations...")
     for i in range(len(lines)):
-        match = re.match(r'\bCREATE\s+(?:PROC|PROCEDURE)\w*\s+((?!.+\..+)(?P<proc_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<proc_2>\[?\S+\]?))',lines[i],re.I)
+        match = re.match(createProcedureRegex,lines[i],re.I)
         if match:
             count +=1
             f = {}
@@ -1028,7 +1044,7 @@ def findTriggers(filedir):
 
     print("Searching lines for trigger creations...")
     for i in range(len(lines)):
-        match = re.match(r'\bCREATE\s+TRIGGER\s+((?!.+\..+)(?P<trig_1>\[?\S+\]?)|(?P<schema>\[?\S+\]?)\.(?P<trig_2>\[?\S+\]?))',lines[i],re.I)
+        match = re.match(createTriggerRegex,lines[i],re.I)
         if match:
             count+=1
             f = {}

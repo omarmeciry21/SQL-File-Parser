@@ -8,7 +8,7 @@ def GetGraph(dirassoc):
     #Will return a list of tables and objects, and a 2D array representing the relations between the two.
     with open(dirassoc) as json_file:
         assoc = json.load(json_file)
-
+    print("Assoc - " + str(assoc))
     dic = assoc["TopDown"]
     tuples = []
 
@@ -21,7 +21,7 @@ def GetGraph(dirassoc):
     objs = []
 
     for i in range(len(tuples)):
-        t = (tuples[i][2],tuples[i][3])
+        t = (tuples[i][2],tuples[i][3],tuples[i][4])
         o = (tuples[i][0],tuples[i][1])
 
         if t not in tables:
@@ -67,12 +67,12 @@ def PrintGraph(graph, tables, objs, spline, neato, name):
                 v = graph[i][j]
 
                 if v == 1:
-                    dot.edge(objs[j][1],tables[i][1])
+                    dot.edge(objs[j][1],tables[i][1],label=tables[i][2])
                 elif v == 2:
-                    dot.edge(tables[i][1],objs[j][1])
+                    dot.edge(tables[i][1],objs[j][1],label=tables[i][2])
                 elif v == 3:
-                    dot.edge(tables[i][1],objs[j][1])
-                    dot.edge(objs[j][1],tables[i][1])
+                    dot.edge(tables[i][1],objs[j][1],label=tables[i][2])
+                    dot.edge(objs[j][1],tables[i][1],label=tables[i][2])
                 elif v == 4:
                     continue
 

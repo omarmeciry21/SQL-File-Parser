@@ -212,13 +212,16 @@ while True:
             if "Assoc" not in dic:
                 print("No Assoc")
                 continue
-
+            print("Values: "+str(values))
             if values["prev"]:
                 fname = values["prev"]
             elif values["dir"]:
                 fname = os.path.basename(values["dir"])[0:-4]
 
             graph, tables, objs = g.GetGraph(fname+".Assoc.json")
+            print(graph)
+            print(tables)
+            print(objs)
 
             g.PrintGraph(graph, tables, objs, values["spline"],values["neato"], fname)
     except Exception as e:
