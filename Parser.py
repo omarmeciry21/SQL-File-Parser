@@ -150,13 +150,13 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                 select = re.search(r'select', lines[line], re.I)
 
                 if select:
-                    # We want to see if this select contains a join, and always record all table references we find.
 
                     joins = False  # Records if there is a join in this select statement
                     tables = []  # Holds all the tables within this select statement
 
                     # Look through all the lines in this select.
                     for sel in range(line, len(lines)):
+
                         # Check every table regex against each line we find.
                         for r in regex:
                             table = re.findall(r, lines[sel],flags=re.I|re.X)
@@ -173,7 +173,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                         where = re.search(r'where', lines[sel], re.I)
 
                         # Finish checking for a select statement, as we dont want to check too far.
-                        if where or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
+                        if (where) or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
                             # If there were joins, we can now record these tables on the graph.
                             if joins:
                                 # All tables in tables[] should be interconnected
