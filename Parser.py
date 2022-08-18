@@ -95,16 +95,50 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
 
     # The current list of regular expressions used to match tables. Needs to be expanded to account for all
     # possible ways a table can be referenced in sql.
+
+    # regex = [
+    #     # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
+    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?=\s)',#one \ [one] \ @one
+    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?=\s)',#one.two \ [one].[two]
+    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?=\s)',#one.two.three/[one].[two].[three]
+    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?=\s)',#one.two.three/[one].[two].[three]
+    #     # r'(?<=JOIN|FROM)(?:\s)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two]
+    #     # r'(?<=JOIN|FROM)(?:\s)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three]
+    #     # r'(?<=JOIN|FROM)(?:\s)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three].[four]
+    #     ]
+
+    # regex = [
+    #     # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
+    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?![\S\.])',#one \ [one]
+    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two \ [one].[two]
+    #     # r'(?<=JOIN|FROM)(?:\s+)\[\w+\]\.\w+(?!\S)',#[one].two
+    #     # r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two
+    #     r'(?<=JOIN|FROM)(?:\s+)\w+\.\w+\.\w+(?!\S)',#one.two.three
+    #     r'(?<=JOIN|FROM)(?:\s+)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two]
+    #     r'(?<=JOIN|FROM)(?:\s+)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three]
+    #     r'(?<=JOIN|FROM)(?:\s+)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',]#[one].[two].[three].[four]
+
     regex = [
         # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
-        r'(?<=JOIN\s|FROM\s)\[?\w+\]?(?!\S)',#one \ [one]
-        r'(?<=JOIN\s|FROM\s)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two \ [one].[two]
-        r'(?<=JOIN\s|FROM\s)\[\w+\]\.\w+(?!\S)',#[one].two
-        r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two
-        r'(?<!\S)\w+\.\w+\.\w+(?!\S)',#one.two.three
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two]
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three]
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',]#[one].[two].[three].[four]
+        r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?(?=[\s])',#one \ [one]
+        r'(?<=JOIN|FROM)\[?\w+\]?\.\[?\w+\]?(?=[\s])',#one.two \ [one].[two]
+        r'(?<=JOIN|FROM)\[\w+\]\.\w+(?=[\s])',#[one].two
+        r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?=[\s])',#one.two
+        r'(?<!\S)\w+\.\w+\.\w+(?=[\s])',#one.two.three
+        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?=[\s])',#[one].[two]
+        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?=[\s])',#[one].[two].[three]
+        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?=[\s])',]#[one].[two].[three].[four]
+
+    # regex = [
+    #     # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
+    #     r'(?<=JOIN\s|FROM\s)\[?\w+\]?(?!\S)',#one \ [one]
+    #     r'(?<=JOIN\s|FROM\s)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two \ [one].[two]
+    #     r'(?<=JOIN\s|FROM\s)\[\w+\]\.\w+(?!\S)',#[one].two
+    #     r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two
+    #     r'(?<!\S)\w+\.\w+\.\w+(?!\S)',#one.two.three
+    #     r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two]
+    #     r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three]
+    #     r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',]#[one].[two].[three].[four]
 
 
 
@@ -123,7 +157,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
 
     # Iterate through all of the lines of the sql file, looking for create statements for each of the objects we are looking for.
     for i in range(len(lines)):
-        matchV = re.match(r'\bCREATE\s+VIEW\s+(?P<schema>\[?.+\]?)\.(?P<view>\[?.+?\]?)\s', lines[i], re.I)
+        matchV = re.match(r'\bCREATE\s+VIEW\s+(?P<schema>\[?\w+\]?)\.(?P<view>\[?\w+?\]?)\s', lines[i], re.I)
         matchF = re.match(r'\bCREATE\s+FUNCTION\s+(?P<schema>\[?.+\]?)\.(?P<func>\[?.+?\]?)\s', lines[i], re.I)
         matchP = re.match(r'\bCREATE\s+PROC\s+(?P<schema>\[?.+\]?)\.(?P<proc>\[?.+?\]?)\s', lines[i], re.I)
         matchT = re.match(r'\bCREATE\s+TRIGGER\s+(?P<schema>\[?.+\]?)\.(?P<trig>\[?.+?\]?)\s', lines[i], re.I)
@@ -157,12 +191,25 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                     # Look through all the lines in this select.
                     for sel in range(line, len(lines)):
 
+                        # In case the last line was finished with join or from, we get the last word of
+                        # the last line and if it's 'FROM' or 'JOIN' we add it to the beginning of line
+                        # before matching.
+                        currLine = lines[sel]
+                        prevline = lines[sel-1].split()
+                        if len(prevline) >0:
+                            lastWordInPrevline = prevline[-1].lower()
+                            if lastWordInPrevline == 'join' or lastWordInPrevline =='from':
+                                currLine = lastWordInPrevline.upper() + ' ' +currLine
+
                         # Check every table regex against each line we find.
                         for r in regex:
-                            table = re.findall(r, lines[sel],flags=re.I|re.X)
-                            if '[nrnClinic].EvalSubcategoryCodes' in table:
-                                print('[nrnClinic].EvalSubcategoryCodes met')
-                            tables = tables + table
+                            table = re.findall(r, currLine,flags=re.I|re.X)
+                            if len(table)>0:
+                                print("Table match: "+ str(table) + " - regex: "+str(r)+" currLine: "+currLine+" Curr Obj: "+currobj)
+                            for t in range(len(table)):
+                                table[t]= "".join(table[t].split())
+                            if table not in tables:
+                                tables = tables + table
 
                         join = re.search(r'join', lines[sel], re.I)
 
@@ -170,10 +217,11 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                         if join:
                             joins = True
 
-                        where = re.search(r'where', lines[sel], re.I)
+                        create = re.search(r'create', lines[sel], re.I)
+                        set = re.search(r';', lines[sel], re.I)
 
                         # Finish checking for a select statement, as we dont want to check too far.
-                        if (where) or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
+                        if (set or create) or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
                             # If there were joins, we can now record these tables on the graph.
                             if joins:
                                 # All tables in tables[] should be interconnected
@@ -186,13 +234,9 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                                 for f in range(len(tables)):
                                     # Split it up into each of the words that make it up, as in, "[one].[two]" becomes ["one","two"]
                                     s = re.findall(r'\[(.+?)\]', tables[f], re.I)
-                                    if tables[f] == '[nrnClinic].EvalSubcategoryCodes':
-                                        print("[nrnClinic].EvalSubcategoryCodes: met")
 
                                     if not s:
                                         s = re.split(r'\.', tables[f], re.I)
-                                    if currobj=="[dbo].[EvalIncompleteErrorsList]":
-                                        print("[dbo].[EvalIncompleteErrorsList]: "+str(s))
                                     if len(s)==1:
                                         db =currobj.split('.')[0]
                                         db = db.replace('[','')

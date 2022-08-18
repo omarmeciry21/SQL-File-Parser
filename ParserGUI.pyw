@@ -1,5 +1,6 @@
 import PySimpleGUI as sg
 import Parser as p
+import temp_regex
 import DirGraph as g
 import os
 import json
@@ -205,7 +206,8 @@ while True:
             if dic['Trigger']:
                 other = other | dic['Trigger']
 
-            p.findJoins(values["dir"],fname, other, dic["Table"], values["simp"], values["neato2"], values["conn"], values["edges"])
+            # TODO:
+            p.findJoins(values["dir"], fname, other, dic["Table"], values["simp"], values["neato2"], values["conn"], values["edges"])
 
         elif event == "Generate Graph":
             #Uses table-object associations to generate a graph, calling the DirGraph.py PrintGraph script to do so.
