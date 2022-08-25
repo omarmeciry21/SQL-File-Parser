@@ -120,14 +120,14 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
 
     regex = [
         # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
-        r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?(?=[\s])',#one \ [one]
-        r'(?<=JOIN|FROM)\[?\w+\]?\.\[?\w+\]?(?=[\s])',#one.two \ [one].[two]
-        r'(?<=JOIN|FROM)\[\w+\]\.\w+(?=[\s])',#[one].two
-        r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?=[\s])',#one.two
-        r'(?<!\S)\w+\.\w+\.\w+(?=[\s])',#one.two.three
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?=[\s])',#[one].[two]
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?=[\s])',#[one].[two].[three]
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?=[\s])',]#[one].[two].[three].[four]
+        r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?(?!\.)',#one \ [one]
+        r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two \ [one].[two]
+        r'(?<=JOIN|FROM)(?:\s)\[\w+\]\.\w+(?!\.)',#[one].two
+        r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two
+        r'(?<!\S)\w+\.\w+\.\w+(?!\.)',#one.two.three
+        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two]
+        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two].[three]
+        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',]#[one].[two].[three].[four]
 
     # regex = [
     #     # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
@@ -148,7 +148,7 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
               "fuchsia", "lime", "maroon", "olive", "navy", "teal", "yellowgreen", "rosybrown", "orangered", "orchid",
               "tomato"]
     col = 0
-
+    numOfP = 0
     currobj = ""
     objs = []
 
@@ -181,21 +181,26 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
             # Look through all the lines in the declaration of this object.
             for line in range(i + 1, len(lines)):
                 # Look for select
-                select = re.search(r'select', lines[line], re.I)
+                select = re.search(r'(?:select)', lines[line], re.I)
 
                 if select:
-
+                    numOfP = 0
                     joins = False  # Records if there is a join in this select statement
                     tables = []  # Holds all the tables within this select statement
+                    foundWhere = False
+                    foundEnd = False
 
                     # Look through all the lines in this select.
                     for sel in range(line, len(lines)):
+                        if re.search(r'\(select', lines[line], re.I):
+                            numOfP += 1
 
                         # In case the last line was finished with join or from, we get the last word of
                         # the last line and if it's 'FROM' or 'JOIN' we add it to the beginning of line
                         # before matching.
                         currLine = lines[sel]
                         prevline = lines[sel-1].split()
+
                         if len(prevline) >0:
                             lastWordInPrevline = prevline[-1].lower()
                             if lastWordInPrevline == 'join' or lastWordInPrevline =='from':
@@ -217,11 +222,17 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
                         if join:
                             joins = True
 
-                        create = re.search(r'create', lines[sel], re.I)
-                        set = re.search(r';', lines[sel], re.I)
+                        create = re.search(r'\)', lines[sel], re.I)
+                        if create:
+                            numOfP -=1
+                        # where = re.search(r'where', lines[sel], re.I)
+                        if re.search(r'where', lines[sel], re.I):
+                            foundWhere = True
+                        if foundWhere and re.search(r'(?<!\()(?:select|update|insert|delete)', lines[sel], re.I):
+                            foundEnd = True
 
                         # Finish checking for a select statement, as we dont want to check too far.
-                        if (set or create) or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
+                        if (foundWhere and foundEnd ) or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
                             # If there were joins, we can now record these tables on the graph.
                             if joins:
                                 # All tables in tables[] should be interconnected
