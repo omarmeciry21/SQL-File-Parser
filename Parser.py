@@ -7,6 +7,8 @@ import locale
 import io
 from graphviz import Graph
 
+import states
+
 createTableRegex = r'\bCREATE\s+TABLE\s+((?!.+\..+)(?P<table_1>\[?[^\(\)\s]+\]?)|(?P<schema_1>\[?\S+\]?)\.(?P<table_2>\[?[^\(\)\s]+\]?)|(?P<db>\[?\S+\]?)\.(?P<schema_2>\[?\S+\]?)\.(?P<table_3>\[?[^\(\)\s]+\]?))'
 createViewRegex = r'\bCREATE\s+VIEW\s+((?!.+\..+)(?P<view_1>\[?[^\(\)\s]+\]?)|(?P<schema>\[?\S+\]?)\.(?P<view_2>\[?[^\(\)\s]+\]?))'
 createFunctionRegex = r'\bCREATE\s+FUNCTION\s+((?!.+\..+)(?P<func_1>\[?[^\(\)\s]+\]?)|(?P<schema>\[?\S+\]?)\.(?P<func_2>\[?[^\(\)\s]+\]?))'
@@ -84,6 +86,243 @@ def makeDic(series, dic):
     return dic
 
 
+# def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
+#     # Performs a secondary parse of the sql file, looking for select statements within objects.
+#     # When they are found, we look for a join statement. If we find one, we assume all the tables
+#     # we find within that select statement are somewhat correlated, and draw connections between
+#     # them in a graphviz undirected graph. We display this to user and save it to disk. It can in
+#     # future be converted to a networkx graph easily to allow for graphical analysis to be performed.
+#
+#     lines = getLines(filedir)
+#
+#     # The current list of regular expressions used to match tables. Needs to be expanded to account for all
+#     # possible ways a table can be referenced in sql.
+#
+#     regex = [
+#         # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
+#         r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?(?!\.)',#one \ [one]
+#         r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two \ [one].[two]
+#         r'(?<=JOIN|FROM)(?:\s)\[\w+\]\.\w+(?!\.)',#[one].two
+#         r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two
+#         r'(?<!\S)\w+\.\w+\.\w+(?!\.)',#one.two.three
+#         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two]
+#         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two].[three]
+#         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',]#[one].[two].[three].[four]
+#
+#     # list of colors used to color the graph created.
+#     colors = ["red", "blue", "green", "yellow", "orange", "purple", "black", "brown", "cyan",
+#               "pink", "magenta", "black", "chartreuse", "coral", "crimson", "chocolate", "indigo",
+#               "fuchsia", "lime", "maroon", "olive", "navy", "teal", "yellowgreen", "rosybrown", "orangered", "orchid",
+#               "tomato"]
+#     col = 0
+#     currobj = ""
+#     objs = []
+#
+#     # Graph object that holds our graph.
+#     dot = Graph(name + ".T", strict=True)
+#
+#     # Iterate through all of the lines of the sql file, looking for create statements for each of the objects we are looking for.
+#     for i in range(len(lines)):
+#         matchV = re.match(r'\bCREATE\s+VIEW\s+(?P<schema>\[?\w+\]?)\.(?P<view>\[?\w+?\]?)\s', lines[i], re.I)
+#         matchF = re.match(r'\bCREATE\s+FUNCTION\s+(?P<schema>\[?.+\]?)\.(?P<func>\[?.+?\]?)\s', lines[i], re.I)
+#         matchP = re.match(r'\bCREATE\s+PROC\s+(?P<schema>\[?.+\]?)\.(?P<proc>\[?.+?\]?)\s', lines[i], re.I)
+#         matchT = re.match(r'\bCREATE\s+TRIGGER\s+(?P<schema>\[?.+\]?)\.(?P<trig>\[?.+?\]?)\s', lines[i], re.I)
+#
+#         if matchV or matchF or matchP or matchT:
+#             # When we find a match, record the name of the object so we can later know what object is creating these joins.
+#             if matchV:
+#                 currobj = matchV.group('schema') + '.' + matchV.group('view')
+#             elif matchP:
+#                 currobj = matchP.group('schema') + '.' + matchP.group('proc')
+#             elif matchF:
+#                 currobj = matchF.group('schema') + '.' + matchF.group('func')
+#             elif matchT:
+#                 currobj = matchT.group('schema') + '.' + matchT.group('trig')
+#
+#             # Handle selecting a color for this object.
+#             if currobj not in objs:
+#                 objs.append(currobj)
+#             col = objs.index(currobj) % len(colors)
+#
+#             # Look through all the lines in the declaration of this object.
+#             for line in range(i + 1, len(lines)):
+#                 # Look for select
+#                 select = re.search(r'(?:select)', lines[line], re.I)
+#
+#                 if select:
+#                     numOfP = 0
+#                     joins = False  # Records if there is a join in this select statement
+#                     tables = []  # Holds all the tables within this select statement
+#                     foundWhere = False
+#                     foundEnd = False
+#
+#                     # Look through all the lines in this select.
+#                     for sel in range(line, len(lines)):
+#                         if re.search(r'\(select', lines[line], re.I):
+#                             numOfP += 1
+#
+#                         # In case the last line was finished with join or from, we get the last word of
+#                         # the last line and if it's 'FROM' or 'JOIN' we add it to the beginning of line
+#                         # before matching.
+#                         currLine = lines[sel]
+#                         prevline = lines[sel-1].split()
+#
+#                         if len(prevline) >0:
+#                             lastWordInPrevline = prevline[-1].lower()
+#                             if lastWordInPrevline == 'join' or lastWordInPrevline =='from':
+#                                 currLine = lastWordInPrevline.upper() + ' ' +currLine
+#
+#                         # Check every table regex against each line we find.
+#                         for r in regex:
+#                             table = re.findall(r, currLine,flags=re.I|re.X)
+#                             if len(table)>0:
+#                                 print("Table match: "+ str(table) + " - regex: "+str(r)+" currLine: "+currLine+" Curr Obj: "+currobj)
+#                             for t in range(len(table)):
+#                                 table[t]= "".join(table[t].split())
+#                             if table not in tables:
+#                                 tables = tables + table
+#
+#                         join = re.search(r'join', lines[sel], re.I)
+#
+#                         # if we find a join, we want to record this set of tables.
+#                         if join:
+#                             joins = True
+#
+#                         create = re.search(r'\)', lines[sel], re.I)
+#                         if create:
+#                             numOfP -=1
+#                         # where = re.search(r'where', lines[sel], re.I)
+#                         if re.search(r'where', lines[sel], re.I):
+#                             foundWhere = True
+#                         if foundWhere and re.search(r'(?<!\()(?:select|update|insert|delete)', lines[sel], re.I):
+#                             foundEnd = True
+#
+#                         # Finish checking for a select statement, as we dont want to check too far.
+#                         if (foundWhere and foundEnd ) or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
+#                             # If there were joins, we can now record these tables on the graph.
+#                             if joins:
+#                                 # All tables in tables[] should be interconnected
+#
+#                                 # But first we need to remove all of the aliases
+#
+#                                 tab = []
+#
+#                                 # Look through the list of tables we have collected for this select statement.
+#                                 for f in range(len(tables)):
+#                                     # Split it up into each of the words that make it up, as in, "[one].[two]" becomes ["one","two"]
+#                                     s = re.findall(r'\[(.+?)\]', tables[f], re.I)
+#
+#                                     if not s:
+#                                         s = re.split(r'\.', tables[f], re.I)
+#                                     if len(s)==1:
+#                                         db =currobj.split('.')[0]
+#                                         db = db.replace('[','')
+#                                         db = db.replace(']','')
+#                                         s = [db,s[0]]
+#                                     print('--'+str(s))
+#                                     # Other is the list of valid databases, and this will exclude aliases.
+#                                     if ( s[0] and s[0] in other.keys()) or (len(s)>1 and s[1] in other.keys()):
+#
+#                                         print('--')
+#
+#                                         # We want to skip over certain two ways that are the first two parts of a three way table name
+#                                         # We have a current object in s, and the next object that was found in temp.
+#                                         # We do this by looking to the next object and doing the same conversion as earlier to it.
+#                                         # Because of the way the regex works, it will be [one].[two] in s, and [one].[two].[three] in temp if it is a three way.
+#                                         # Thus, if one=one, two=two, and temp has three parts, we can be sure that this current s should be excluded in favor of
+#                                         # the three way it is a incomplete part of.
+#                                         threeway = False
+#                                         for k in range(len(tables)):
+#                                             temp = re.findall(r'\[(.+?)\]', tables[k], re.I)
+#
+#                                             if not temp:
+#                                                 temp = re.split(r'\.', tables[k], re.I)
+#
+#                                             if temp[0] == s[0] and len(s)>1 and len(temp)>1and temp[1] == s[1] and len(temp) > 2:
+#                                                 threeway = True
+#                                                 break
+#                                         if threeway:
+#                                             continue
+#                                         # Now we simply need to convert this ["one","two"] format back into a single string (with no brackets)
+#                                         # Simple means we limit it to tables that were found by the findTables function.
+#                                         # If simple is not true then we simply need to do the conversion for all the tables we found
+#                                         # (This will often also include some views that were referenced like tables in joins, which can be good or bad,
+#                                         # which is why this is a user option of whether or not they want a simplified table.)
+#                                         print("lCheck")
+#                                         if simple:
+#                                             if s[0] in tabdict:
+#                                                 if len(s)>1 and s[1] in tabdict[s[0]]:
+#                                                     st = s[0]
+#                                                     for v in range(1, len(s)):
+#                                                         st = st + '.' + s[v]
+#                                                     tab.append(st)
+#                                         else:
+#                                             st = s[0]
+#                                             for v in range(1, len(s)):
+#                                                 st = st + '.' + s[v]
+#                                             tab.append(st)
+#                                         # In either case, we add all formatted tables to tab[]
+#
+#                                 # Now we need to handle making each table into a node, and adding edges between every node
+#                                 # As we are assuming every table is equally interconnected as they are all within the same
+#                                 # select statement and all joined together.
+#
+#                                 # We simply go through tab[] and use dot.node(), then specify the:
+#                                 # label - What is shown on the graph
+#                                 # id - What is used to connect the nodes
+#                                 # color - the color corresponding to the parent object.
+#                                 # The conn condition refers to whether we want the same table, if referenced by multiple objects
+#                                 # to only occupy one node, or whether we want each object's reference to that table to be its own
+#                                 # node. We do this by either making the nodeid (what is used to determine unique nodes) simply the
+#                                 # name of the table, or the combination of table name and parent object name (the same thing displayed
+#                                 # as the label in either case).
+#                                 for t in tab:
+#                                     if conn:
+#                                         nodeid = t.lower()
+#                                         nodelabel = t + '\n' + currobj
+#                                     else:
+#                                         nodeid = t.lower() + '\n' + currobj
+#                                         nodelabel = t + '\n' + currobj
+#
+#                                     dot.node(nodeid, nodelabel, color=colors[col])
+#
+#                                 # Now we go through in a double loop, adding edges for each possible. Duplicates are automatically filtered
+#                                 # by the condition "String = True" when we created the dot object. If conn is true we use just the table names,
+#                                 # but if conn is false then we use the combination of table and object names to connect them.
+#
+#                                 # If edges is true we label the edges with the object that created them, otherwise we don't.
+#                                 for t in tab:
+#                                     for t1 in tab:
+#                                         if t != t1:
+#                                             if conn:
+#                                                 node1id = t.lower()
+#                                                 node2id = t1.lower()
+#                                             else:
+#                                                 node1id = t.lower() + '\n' + currobj
+#                                                 node2id = t1.lower() + '\n' + currobj
+#
+#                                             if edges:
+#                                                 dot.edge(node1id, node2id, label=currobj, color=colors[col])
+#                                             else:
+#                                                 dot.edge(node1id, node2id, color=colors[col])
+#
+#                             break
+#
+#                 # If we find the word "GO" we know we have reached the end of this particular object, and need to continue.
+#                 end = re.match(r'go', lines[line], re.I)
+#                 if end:
+#                     break
+#
+#     dot.graph_attr['overlap'] = "scalexy"
+#
+#     # Neato attempts to spread out the graph as spherical as possible. It is a user option in the GUI.
+#     if neato:
+#         dot.graph_attr['layout'] = "neato"
+#
+#     dot.format = 'svg'
+#     dot.render(view=True)
+#     # This graph is saved, but it is here automatically rendered to the user in svg format.
+#
 def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
     # Performs a secondary parse of the sql file, looking for select statements within objects.
     # When they are found, we look for a join statement. If we find one, we assume all the tables
@@ -93,32 +332,33 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
 
     lines = getLines(filedir)
 
+    createStatements = []
+    insideCreate = False
+
+    for i in range(len(lines)):
+        line = lines[i]
+        if re.match(r'\bCREATE\s+[a-zA-Z]+\s+', lines[i], re.I):
+            insideCreate = True
+            createStatements.append("")
+        elif re.match("GO",line,flags=re.I):
+            insideCreate = False
+
+        if insideCreate:
+            createStatements[-1]+=line+'\n'
+
+    # file = open("create_statements.txt","w")
+    # for i in range(len(createStatements)):
+    #     file.write(createStatements[i]+"\n""\n""\n""\n""\n"+"----------------------------------------------------"+"\n""\n""\n""\n""\n")
+    #
+    # file.close()
+    #
+    # return
+
+
     # The current list of regular expressions used to match tables. Needs to be expanded to account for all
     # possible ways a table can be referenced in sql.
 
-    # regex = [
-    #     # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
-    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?=\s)',#one \ [one] \ @one
-    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?=\s)',#one.two \ [one].[two]
-    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?=\s)',#one.two.three/[one].[two].[three]
-    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?:\s*)\.(?:\s*)\[?\w+\]?(?=\s)',#one.two.three/[one].[two].[three]
-    #     # r'(?<=JOIN|FROM)(?:\s)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two]
-    #     # r'(?<=JOIN|FROM)(?:\s)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three]
-    #     # r'(?<=JOIN|FROM)(?:\s)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three].[four]
-    #     ]
-
-    # regex = [
-    #     # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
-    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?(?![\S\.])',#one \ [one]
-    #     r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two \ [one].[two]
-    #     # r'(?<=JOIN|FROM)(?:\s+)\[\w+\]\.\w+(?!\S)',#[one].two
-    #     # r'(?<=JOIN|FROM)(?:\s+)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two
-    #     r'(?<=JOIN|FROM)(?:\s+)\w+\.\w+\.\w+(?!\S)',#one.two.three
-    #     r'(?<=JOIN|FROM)(?:\s+)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two]
-    #     r'(?<=JOIN|FROM)(?:\s+)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three]
-    #     r'(?<=JOIN|FROM)(?:\s+)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',]#[one].[two].[three].[four]
-
-    regex = [
+    rTableNames = [
         # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
         r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?(?!\.)',#one \ [one]
         r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two \ [one].[two]
@@ -128,234 +368,121 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two]
         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two].[three]
         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',]#[one].[two].[three].[four]
-
-    # regex = [
-    #     # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
-    #     r'(?<=JOIN\s|FROM\s)\[?\w+\]?(?!\S)',#one \ [one]
-    #     r'(?<=JOIN\s|FROM\s)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two \ [one].[two]
-    #     r'(?<=JOIN\s|FROM\s)\[\w+\]\.\w+(?!\S)',#[one].two
-    #     r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?!\S)',#one.two
-    #     r'(?<!\S)\w+\.\w+\.\w+(?!\S)',#one.two.three
-    #     r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two]
-    #     r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',#[one].[two].[three]
-    #     r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\S^;)',]#[one].[two].[three].[four]
-
-
+    rName = '(\[?[^\(\] \.\,\']+\]?)'
+    rFromNames  = r'FROM\s+?(?P<name>'+rName+'\s*\.\s*'+rName+'\s*\.\s*'+rName+'|'+rName+'\s*\.\s*'+rName+'|'+rName+')'
+    rJoinsNames  = r'JOIN\s+?(?P<name>'+rName+'\s*\.\s*'+rName+'\s*\.\s*'+rName+'|'+rName+'\s*\.\s*'+rName+'|'+rName+')'
+    rSubQuery  = r'JOIN\s+?(?P<name>'+rName+'\s*\.\s*'+rName+'\s*\.\s*'+rName+'|'+rName+'\s*\.\s*'+rName+'|'+rName+')'
+    # rJoinsNames  = r'(?P<rel_type>(INNER\s+)?JOIN|LEFT\s+(OUTER\s+)?JOIN|RIGHT\s+(OUTER\s+)?JOIN|FULL\s+(OUTER\s+)?JOIN)\s+?(?P<name>(\[?[^\(\] ]+\]?)\s*\.\s*(\[?[^\(\] ]+\]?)\s*\.\s*(\[?[^\(\] ]+\]?)|(\[?\S+\]?\s*\.\s*\[?[^\(\] ]+\]?)|(\[?[^\(\] ]+\]?))'
 
     # list of colors used to color the graph created.
     colors = ["red", "blue", "green", "yellow", "orange", "purple", "black", "brown", "cyan",
               "pink", "magenta", "black", "chartreuse", "coral", "crimson", "chocolate", "indigo",
               "fuchsia", "lime", "maroon", "olive", "navy", "teal", "yellowgreen", "rosybrown", "orangered", "orchid",
               "tomato"]
-    col = 0
-    numOfP = 0
-    currobj = ""
+    colorIndex = 0
+    currentObjName = ""
+    currentObjType = ""
+    contextState = states.CONTEXT_STATE.INIT_STATE
+    currObjState = states.CURRENT_OBJ_STATE.NO_LABEL_STATE
+
     objs = []
+    tmpTables = []
 
     # Graph object that holds our graph.
-    dot = Graph(name + ".T", strict=True)
-
+    graph = Graph(name + ".T", strict=True)
+    objsFile = open("db_objects.txt","w")
+    resultsFile = open("db_results.txt","w")
     # Iterate through all of the lines of the sql file, looking for create statements for each of the objects we are looking for.
-    for i in range(len(lines)):
-        matchV = re.match(r'\bCREATE\s+VIEW\s+(?P<schema>\[?\w+\]?)\.(?P<view>\[?\w+?\]?)\s', lines[i], re.I)
-        matchF = re.match(r'\bCREATE\s+FUNCTION\s+(?P<schema>\[?.+\]?)\.(?P<func>\[?.+?\]?)\s', lines[i], re.I)
-        matchP = re.match(r'\bCREATE\s+PROC\s+(?P<schema>\[?.+\]?)\.(?P<proc>\[?.+?\]?)\s', lines[i], re.I)
-        matchT = re.match(r'\bCREATE\s+TRIGGER\s+(?P<schema>\[?.+\]?)\.(?P<trig>\[?.+?\]?)\s', lines[i], re.I)
+    for j in range(len(createStatements)):
+        linesList = createStatements[j].split("\n")
 
-        if matchV or matchF or matchP or matchT:
-            # When we find a match, record the name of the object so we can later know what object is creating these joins.
-            if matchV:
-                currobj = matchV.group('schema') + '.' + matchV.group('view')
-            elif matchP:
-                currobj = matchP.group('schema') + '.' + matchP.group('proc')
-            elif matchF:
-                currobj = matchF.group('schema') + '.' + matchF.group('func')
-            elif matchT:
-                currobj = matchT.group('schema') + '.' + matchT.group('trig')
+        currentObj = re.match(r"CREATE\s+?(?!TABLE)(?P<type>\w+)\s+?(?P<name>\[\S+\]\.\[[^\(\]]+\])",linesList[0],flags=re.I)
+        if(not currentObj):
+            print(linesList[0])
+        else:
+            objsFile.write(currentObj.group("name")+"  -  Type: "+currentObj.group("type")+"\n")
+            currentObjName = currentObj.group("name")
+            currentObjType = currentObj.group("type")
+            objs += {"name":currentObjName,"type":currentObjType,"relations":[]}   # example: each relation: {"type":"Inner Join", "tables":[]}
 
-            # Handle selecting a color for this object.
-            if currobj not in objs:
-                objs.append(currobj)
-            col = objs.index(currobj) % len(colors)
 
-            # Look through all the lines in the declaration of this object.
-            for line in range(i + 1, len(lines)):
-                # Look for select
-                select = re.search(r'(?:select)', lines[line], re.I)
+        for i in range(len(linesList)):
+            line = linesList[i]
+            if i == 0:
+                currObjState = states.CURRENT_OBJ_STATE.IN_CREATE_STATE
+                tmpTables=[]
 
-                if select:
-                    numOfP = 0
-                    joins = False  # Records if there is a join in this select statement
-                    tables = []  # Holds all the tables within this select statement
-                    foundWhere = False
-                    foundEnd = False
 
-                    # Look through all the lines in this select.
-                    for sel in range(line, len(lines)):
-                        if re.search(r'\(select', lines[line], re.I):
-                            numOfP += 1
 
-                        # In case the last line was finished with join or from, we get the last word of
-                        # the last line and if it's 'FROM' or 'JOIN' we add it to the beginning of line
-                        # before matching.
-                        currLine = lines[sel]
-                        prevline = lines[sel-1].split()
+            if contextState == states.CONTEXT_STATE.INIT_STATE and re.match(r"UPDATE",line,flags=re.I):
+                contextState = states.CONTEXT_STATE.UPDATE_STATE
 
-                        if len(prevline) >0:
-                            lastWordInPrevline = prevline[-1].lower()
-                            if lastWordInPrevline == 'join' or lastWordInPrevline =='from':
-                                currLine = lastWordInPrevline.upper() + ' ' +currLine
+            if contextState == states.CONTEXT_STATE.UPDATE_STATE and re.match(r"SELECT",line,flags=re.I):
+                contextState = states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE
+                tmp = re.match(rFromNames,line,re.I)
+                if tmp  and tmp.group("name") not in tmpTables :
+                    tmpTables .append(tmp.group("name"))
+                    print("Match: "+line)
 
-                        # Check every table regex against each line we find.
-                        for r in regex:
-                            table = re.findall(r, currLine,flags=re.I|re.X)
-                            if len(table)>0:
-                                print("Table match: "+ str(table) + " - regex: "+str(r)+" currLine: "+currLine+" Curr Obj: "+currobj)
-                            for t in range(len(table)):
-                                table[t]= "".join(table[t].split())
-                            if table not in tables:
-                                tables = tables + table
+            if contextState == states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE and len(tmpTables) == 0:
+                tmp = re.match(rFromNames,line,re.I)
+                if tmp  and tmp.group("name") not in tmpTables :
+                    tmpTables.append(tmp.group("name"))
+                    print("Match: "+line)
 
-                        join = re.search(r'join', lines[sel], re.I)
+            if contextState == states.CONTEXT_STAT
 
-                        # if we find a join, we want to record this set of tables.
-                        if join:
-                            joins = True
+            if contextState == states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE and len(tmpTables)>0:#and re.match("JOIN",line,flags=re.I):
+                tmp = re.search(rJoinsNames,line)
+                if not tmp:
+                    print("Tmp condition issue: "+str(tmp)+  line)
+                if tmp.group("name") in tmpTables:
+                    print("tmp.group condition issue")
+                if tmp  and tmp.group("name") not in tmpTables :
+                    tmpTables.append(tmp.group("name"))
+                    print("Match: "+line)
 
-                        create = re.search(r'\)', lines[sel], re.I)
-                        if create:
-                            numOfP -=1
-                        # where = re.search(r'where', lines[sel], re.I)
-                        if re.search(r'where', lines[sel], re.I):
-                            foundWhere = True
-                        if foundWhere and re.search(r'(?<!\()(?:select|update|insert|delete)', lines[sel], re.I):
-                            foundEnd = True
+            if contextState == states.CONTEXT_STATE.INIT_STATE and re.match(r"SELECT",line,flags=re.I):
+                contextState = states.CONTEXT_STATE.SELECT_STATE
 
-                        # Finish checking for a select statement, as we dont want to check too far.
-                        if (foundWhere and foundEnd ) or lines[sel].startswith("GO") or lines[sel].startswith("\n"):
-                            # If there were joins, we can now record these tables on the graph.
-                            if joins:
-                                # All tables in tables[] should be interconnected
 
-                                # But first we need to remove all of the aliases
+            if contextState == states.CONTEXT_STATE.SELECT_STATE and re.match(r"FROM",line,flags=re.I):
+                tmp = re.match(rFromNames,line,re.I)
+                if tmp  and tmp.group("name") not in tmpTables :
+                    tmpTables.append(tmp.group("name"))
+                    print("Match: "+line)
 
-                                tab = []
+            if contextState == states.CONTEXT_STATE.SELECT_STATE and len(tmpTables) == 0:
+                tmp = re.match(rFromNames,line,re.I)
+                if tmp  and tmp.group("name") not in tmpTables :
+                    tmpTables.append(tmp.group("name"))
+                    print("Match: "+line)
 
-                                # Look through the list of tables we have collected for this select statement.
-                                for f in range(len(tables)):
-                                    # Split it up into each of the words that make it up, as in, "[one].[two]" becomes ["one","two"]
-                                    s = re.findall(r'\[(.+?)\]', tables[f], re.I)
+            if contextState == states.CONTEXT_STATE.SELECT_STATE  and len(tmpTables)>0:#and re.match("JOIN",line,flags=re.I):
+                tmp = re.search(rJoinsNames,line)
+                if not tmp:
+                    print("Tmp condition issue: "+str(tmp) +  line)
+                elif tmp.group("name") in tmpTables:
+                    print("tmp.group condition issue")
+                if tmp and tmp.group("name") not in tmpTables :
+                    tmpTables.append(tmp.group("name"))
+                    print("Match: "+line)
 
-                                    if not s:
-                                        s = re.split(r'\.', tables[f], re.I)
-                                    if len(s)==1:
-                                        db =currobj.split('.')[0]
-                                        db = db.replace('[','')
-                                        db = db.replace(']','')
-                                        s = [db,s[0]]
-                                    print('--'+str(s))
-                                    # Other is the list of valid databases, and this will exclude aliases.
-                                    if ( s[0] and s[0] in other.keys()) or (len(s)>1 and s[1] in other.keys()):
+            if (len(tmpTables)>1 and (re.match(r"^GO$",line,flags=re.I) or re.match(r"DELETE",line,flags=re.I) or re.match(r"INSERT",line,flags=re.I))) or (contextState != states.CONTEXT_STATE.INIT_STATE and ( re.match(r"SET",line,flags=re.I) or re.match(r";",line,flags=re.I) )):
+                contextState = states.CONTEXT_STATE.INIT_STATE
+                if len(tmpTables)>1:
+                    objectMap = {"name":currentObjName,"relations":[]}
+                    for i in range(len(tmpTables)-1):
+                        objectMap["relations"].append ((tmpTables[i],tmpTables[i+1]))
+                    resultsFile.write(str(objectMap))
+                    resultsFile.write("\n\n-----------------------------------------\n\n")
 
-                                        print('--')
 
-                                        # We want to skip over certain two ways that are the first two parts of a three way table name
-                                        # We have a current object in s, and the next object that was found in temp.
-                                        # We do this by looking to the next object and doing the same conversion as earlier to it.
-                                        # Because of the way the regex works, it will be [one].[two] in s, and [one].[two].[three] in temp if it is a three way.
-                                        # Thus, if one=one, two=two, and temp has three parts, we can be sure that this current s should be excluded in favor of
-                                        # the three way it is a incomplete part of.
-                                        threeway = False
-                                        for k in range(len(tables)):
-                                            temp = re.findall(r'\[(.+?)\]', tables[k], re.I)
 
-                                            if not temp:
-                                                temp = re.split(r'\.', tables[k], re.I)
+            if i==len(linesList)-1:
+                contextState = states.CONTEXT_STATE.INIT_STATE
 
-                                            if temp[0] == s[0] and len(s)>1 and len(temp)>1and temp[1] == s[1] and len(temp) > 2:
-                                                threeway = True
-                                                break
-                                        if threeway:
-                                            continue
-                                        # Now we simply need to convert this ["one","two"] format back into a single string (with no brackets)
-                                        # Simple means we limit it to tables that were found by the findTables function.
-                                        # If simple is not true then we simply need to do the conversion for all the tables we found
-                                        # (This will often also include some views that were referenced like tables in joins, which can be good or bad,
-                                        # which is why this is a user option of whether or not they want a simplified table.)
-                                        print("lCheck")
-                                        if simple:
-                                            if s[0] in tabdict:
-                                                if len(s)>1 and s[1] in tabdict[s[0]]:
-                                                    st = s[0]
-                                                    for v in range(1, len(s)):
-                                                        st = st + '.' + s[v]
-                                                    tab.append(st)
-                                        else:
-                                            st = s[0]
-                                            for v in range(1, len(s)):
-                                                st = st + '.' + s[v]
-                                            tab.append(st)
-                                        # In either case, we add all formatted tables to tab[]
-
-                                # Now we need to handle making each table into a node, and adding edges between every node
-                                # As we are assuming every table is equally interconnected as they are all within the same
-                                # select statement and all joined together.
-
-                                # We simply go through tab[] and use dot.node(), then specify the:
-                                # label - What is shown on the graph
-                                # id - What is used to connect the nodes
-                                # color - the color corresponding to the parent object.
-                                # The conn condition refers to whether we want the same table, if referenced by multiple objects
-                                # to only occupy one node, or whether we want each object's reference to that table to be its own
-                                # node. We do this by either making the nodeid (what is used to determine unique nodes) simply the
-                                # name of the table, or the combination of table name and parent object name (the same thing displayed
-                                # as the label in either case).
-                                for t in tab:
-                                    if conn:
-                                        nodeid = t.lower()
-                                        nodelabel = t + '\n' + currobj
-                                    else:
-                                        nodeid = t.lower() + '\n' + currobj
-                                        nodelabel = t + '\n' + currobj
-
-                                    dot.node(nodeid, nodelabel, color=colors[col])
-
-                                # Now we go through in a double loop, adding edges for each possible. Duplicates are automatically filtered
-                                # by the condition "String = True" when we created the dot object. If conn is true we use just the table names,
-                                # but if conn is false then we use the combination of table and object names to connect them.
-
-                                # If edges is true we label the edges with the object that created them, otherwise we don't.
-                                for t in tab:
-                                    for t1 in tab:
-                                        if t != t1:
-                                            if conn:
-                                                node1id = t.lower()
-                                                node2id = t1.lower()
-                                            else:
-                                                node1id = t.lower() + '\n' + currobj
-                                                node2id = t1.lower() + '\n' + currobj
-
-                                            if edges:
-                                                dot.edge(node1id, node2id, label=currobj, color=colors[col])
-                                            else:
-                                                dot.edge(node1id, node2id, color=colors[col])
-
-                            break
-
-                # If we find the word "GO" we know we have reached the end of this particular object, and need to continue.
-                end = re.match(r'go', lines[line], re.I)
-                if end:
-                    break
-
-    dot.graph_attr['overlap'] = "scalexy"
-
-    # Neato attempts to spread out the graph as spherical as possible. It is a user option in the GUI.
-    if neato:
-        dot.graph_attr['layout'] = "neato"
-
-    dot.format = 'svg'
-    dot.render(view=True)
-    # This graph is saved, but it is here automatically rendered to the user in svg format.
+    objsFile.close()
 
 
 def findRef(regex, line, lines, endcon):
