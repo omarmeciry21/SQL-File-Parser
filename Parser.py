@@ -5,6 +5,8 @@ import re
 import textwrap
 import locale
 import io
+from datetime import date
+from datetime import datetime
 from graphviz import Graph
 
 import states
@@ -323,6 +325,248 @@ def makeDic(series, dic):
 #     dot.render(view=True)
 #     # This graph is saved, but it is here automatically rendered to the user in svg format.
 #
+
+# Finite State Maching System:
+# def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
+#     # Performs a secondary parse of the sql file, looking for select statements within objects.
+#     # When they are found, we look for a join statement. If we find one, we assume all the tables
+#     # we find within that select statement are somewhat correlated, and draw connections between
+#     # them in a graphviz undirected graph. We display this to user and save it to disk. It can in
+#     # future be converted to a networkx graph easily to allow for graphical analysis to be performed.
+#
+#     lines = getLines(filedir)
+#
+#     createStatements = []
+#     insideCreate = False
+#
+#     for i in range(len(lines)):
+#         line = lines[i]
+#         if re.match(r'\bCREATE\s+[a-zA-Z]+\s+', lines[i], re.I):
+#             insideCreate = True
+#             createStatements.append("")
+#         elif re.match("GO",line,flags=re.I):
+#             insideCreate = False
+#
+#         if insideCreate:
+#             createStatements[-1]+=line+'\n'
+#
+#     # file = open("create_statements.txt","w")
+#     # for i in range(len(createStatements)):
+#     #     file.write(createStatements[i]+"\n""\n""\n""\n""\n"+"----------------------------------------------------"+"\n""\n""\n""\n""\n")
+#     #
+#     # file.close()
+#     #
+#     # return
+#
+#
+#     # The current list of regular expressions used to match tables. Needs to be expanded to account for all
+#     # possible ways a table can be referenced in sql.
+#
+#     rTableNames = [
+#         # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
+#         r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?(?!\.)',#one \ [one]
+#         r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two \ [one].[two]
+#         r'(?<=JOIN|FROM)(?:\s)\[\w+\]\.\w+(?!\.)',#[one].two
+#         r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two
+#         r'(?<!\S)\w+\.\w+\.\w+(?!\.)',#one.two.three
+#         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two]
+#         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two].[three]
+#         r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',]#[one].[two].[three].[four]
+#     rName = '((?:\[?[^\(\] \.\,\']+\]?)(?:\s*\.\s*(?:\[?[^\(\] \.\,\']+\]?))*)'
+#     rFromNames  = r'FROM\s+?(?P<name>'+rName+')'
+#     rJoinsNames  = r'JOIN\s+?(?P<name>'+rName+')'
+#
+#     # There are sevel types of correlations that we will try to capture.
+#     # First type: From Table1 ((AS) T1), Table2 ((AS) T2), ... Where column_name
+#     # Second type: From Table1 ((AS) T1) where column_name (IN or =) (Select ... From Table2 ((AS) T2))
+#     # Third type: Join (Select ... From Table2 ((AS) T2) on (T1 or Table1).column_name_1 = (T2 or Table2).column_name_2 )
+#
+#     rCheckCorrelationInSameLine  = r'From\s*'+rName+'[^,]+,\s*'+rName
+#     rCaptureCorrelationFirstName  = r'From\s*(?P<name>'+rName+')(?P<alias>(?:\s*)'+rName+')+,'
+#     rCaptureCorrelationOtherNames  = r',\s*(?P<name>'+rName+')'
+#     # rJoinsNames  = r'(?P<rel_type>(INNER\s+)?JOIN|LEFT\s+(OUTER\s+)?JOIN|RIGHT\s+(OUTER\s+)?JOIN|FULL\s+(OUTER\s+)?JOIN)\s+?(?P<name>(\[?[^\(\] ]+\]?)\s*\.\s*(\[?[^\(\] ]+\]?)\s*\.\s*(\[?[^\(\] ]+\]?)|(\[?\S+\]?\s*\.\s*\[?[^\(\] ]+\]?)|(\[?[^\(\] ]+\]?))'
+#
+#     # list of colors used to color the graph created.
+#     colors = ["red", "blue", "green", "yellow", "orange", "purple", "black", "brown", "cyan",
+#               "pink", "magenta", "black", "chartreuse", "coral", "crimson", "chocolate", "indigo",
+#               "fuchsia", "lime", "maroon", "olive", "navy", "teal", "yellowgreen", "rosybrown", "orangered", "orchid",
+#               "tomato"]
+#     colorIndex = 0
+#     currentObjName = ""
+#     currentObjType = ""
+#     contextState = states.CONTEXT_STATE.INIT_STATE
+#     currObjState = states.CURRENT_OBJ_STATE.NO_LABEL_STATE
+#
+#     objs = []
+#     tmpTables = []
+#
+#     # Graph object that holds our graph.
+#     graph = Graph(name + ".T", strict=True)
+#     objsFile = open("db_objects.txt","w")
+#     resultsFile = open("db_results.txt","w")
+#     # Iterate through all of the lines of the sql file, looking for create statements for each of the objects we are looking for.
+#     for j in range(len(createStatements)):
+#         linesList = createStatements[j].split("\n")
+#
+#         currentObj = re.match(r"CREATE\s+?(?!TABLE)(?P<type>\w+)\s+?(?P<name>\[\S+\]\.\[[^\(\]]+\])",linesList[0],flags=re.I)
+#         if(not currentObj):
+#             print(linesList[0])
+#         else:
+#             objsFile.write(currentObj.group("name")+"  -  Type: "+currentObj.group("type")+"\n")
+#             currentObjName = currentObj.group("name")
+#             currentObjType = currentObj.group("type")
+#             objs += {"name":currentObjName,"type":currentObjType,"relations":[]}   # example: each relation: {"type":"Inner Join", "tables":[]}
+#
+#
+#         for i in range(len(linesList)):
+#             line = linesList[i]
+#             if i == 0:
+#                 currObjState = states.CURRENT_OBJ_STATE.IN_CREATE_STATE
+#                 tmpTables=[]
+#
+#
+#
+#             if contextState == states.CONTEXT_STATE.INIT_STATE and re.match(r"UPDATE",line,flags=re.I):
+#                 contextState = states.CONTEXT_STATE.UPDATE_STATE
+#
+#             if contextState == states.CONTEXT_STATE.UPDATE_STATE and re.match(r"SELECT",line,flags=re.I):
+#                 contextState = states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE
+#                 tmp = re.match(rFromNames,line,re.I)
+#                 if tmp  and tmp.group("name") not in tmpTables :
+#                     tmpTables .append(tmp.group("name"))
+#                     print("Match: "+line)
+#
+#             if contextState == states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE and len(tmpTables) == 0:
+#                 tmp = re.match(rFromNames,line,re.I)
+#                 if tmp  and tmp.group("name") not in tmpTables :
+#                     tmpTables.append(tmp.group("name"))
+#                     print("Match: "+line)
+#
+#             if contextState == states.CONTEXT_STAT
+#
+#             if contextState == states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE and len(tmpTables)>0:#and re.match("JOIN",line,flags=re.I):
+#                 tmp = re.search(rJoinsNames,line)
+#                 if not tmp:
+#                     print("Tmp condition issue: "+str(tmp)+  line)
+#                 if tmp.group("name") in tmpTables:
+#                     print("tmp.group condition issue")
+#                 if tmp  and tmp.group("name") not in tmpTables :
+#                     tmpTables.append(tmp.group("name"))
+#                     print("Match: "+line)
+#
+#             if contextState == states.CONTEXT_STATE.INIT_STATE and re.match(r"SELECT",line,flags=re.I):
+#                 contextState = states.CONTEXT_STATE.SELECT_STATE
+#
+#
+#             if contextState == states.CONTEXT_STATE.SELECT_STATE and re.match(r"FROM",line,flags=re.I):
+#                 tmp = re.match(rFromNames,line,re.I)
+#                 if tmp  and tmp.group("name") not in tmpTables :
+#                     tmpTables.append(tmp.group("name"))
+#                     print("Match: "+line)
+#
+#             if contextState == states.CONTEXT_STATE.SELECT_STATE and len(tmpTables) == 0:
+#                 tmp = re.match(rFromNames,line,re.I)
+#                 if tmp  and tmp.group("name") not in tmpTables :
+#                     tmpTables.append(tmp.group("name"))
+#                     print("Match: "+line)
+#
+#             if contextState == states.CONTEXT_STATE.SELECT_STATE  and len(tmpTables)>0:#and re.match("JOIN",line,flags=re.I):
+#                 tmp = re.search(rJoinsNames,line)
+#                 if not tmp:
+#                     print("Tmp condition issue: "+str(tmp) +  line)
+#                 elif tmp.group("name") in tmpTables:
+#                     print("tmp.group condition issue")
+#                 if tmp and tmp.group("name") not in tmpTables :
+#                     tmpTables.append(tmp.group("name"))
+#                     print("Match: "+line)
+#
+#             if (len(tmpTables)>1 and (re.match(r"^\s*GO\s*$",line,flags=re.I) or re.match(r"DELETE",line,flags=re.I) or re.match(r"INSERT",line,flags=re.I))) or (contextState != states.CONTEXT_STATE.INIT_STATE and ( re.match(r"^\s*SET",line,flags=re.I) or re.match(r";",line,flags=re.I) )):
+#                 contextState = states.CONTEXT_STATE.INIT_STATE
+#                 if len(tmpTables)>1:
+#                     objectMap = {"name":currentObjName,"relations":[]}
+#                     for i in range(len(tmpTables)-1):
+#                         objectMap["relations"].append ((tmpTables[i],tmpTables[i+1]))
+#                     resultsFile.write(str(objectMap))
+#                     resultsFile.write("\n\n-----------------------------------------\n\n")
+#
+#
+#
+#             if i==len(linesList)-1:
+#                 contextState = states.CONTEXT_STATE.INIT_STATE
+#
+#     objsFile.close()
+# End of Finite State Machine System
+
+def handleSelectQuery(query):
+    relations = [] # relation: (Table1,Table2,Table3,..., relation_type)
+
+    rName = '((?:(?:\[\s*)?[^\(\] \.\,\']+(?:\s*\])?)(?:\s*\.\s*(?:(?:\[\s*)?[^\(\] \.\,\']+(?:\s*\])?))*)'
+    rFrom = r'FROM\s+(?P<name>'+rName+').+?\s*(?P<type>(?:LEFT|RIGHT)?\s*(?:INNER|OUTER)?\s*JOIN)'
+    rFromWithAlias = r'FROM\s+(?P<name>'+rName+').+?\s*,'
+    rFromWithSubQuery = r'FROM\s+(?P<name>'+rName+').+?\s*(?P<type>(LEFT|RIGHT)?\s*(INNER|OUTER)?\s*JOIN)'
+    rFromWithWhereSubJoins = r'FROM\s+(?P<name>'+rName+').+?\s*(?P<type>(LEFT|RIGHT)?\s*(INNER|OUTER)?\s*JOIN)'
+    rJoins = r'(?P<type>(?:LEFT\s*|RIGHT\s*)?(?:INNER\s+|OUTER\s+)?JOIN)\s+(?P<name>'+rName+')'
+    joinsMatches = [(match.group("name"),match .group("type")) for match in re.finditer(rJoins,query,flags=re.I)]
+    # print(joinsMatches)
+
+    tableNames = []
+    f =open("db_selects.txt","a")
+    if re.search(rFrom,query,flags=re.I):
+        print("in")
+        print(re.search(rFrom,query,flags=re.I))
+        tmpTable = re.search(rFrom,query,flags=re.I).group("name")
+        for i in range(len(joinsMatches)):
+            table1 = tmpTable
+            table2 = joinsMatches[i][0]
+            tmpTable = table2
+            rel_type = joinsMatches[i][1]
+            if rel_type.lower()==' join':
+                rel_type='inner join'
+            relations.append((table1,table2,rel_type.upper()))
+        print(relations)
+    else:
+        f.write("----------------\n\n"+query+"\n\n---------------")
+        f.close()
+
+
+    return relations
+
+
+
+def handleUpdateQuery(query):
+    relations = [] # relation: (Table1,Table2,Table3,..., relation_type)
+
+    rName = '((?:(?:\[\s*)?[^\(\] \.\,\']+(?:\s*\])?)(?:\s*\.\s*(?:(?:\[\s*)?[^\(\] \.\,\']+(?:\s*\])?))*)'
+    rFrom = r'FROM\s+(?P<name>'+rName+')[\[\],\(\)\s\w]+?\s*(?P<type>(?:LEFT|RIGHT)?\s*(?:INNER|OUTER)?\s*JOIN)'
+    rFromWithAlias = r'FROM\s+(?P<name>'+rName+').+?\s*,'
+    rFromWithSubQuery = r'FROM\s+(?P<name>'+rName+').+?\s*(?P<type>(LEFT|RIGHT)?\s*(INNER|OUTER)?\s*JOIN)'
+    rFromWithWhereSubJoins = r'FROM\s+(?P<name>'+rName+').+?\s*(?P<type>(LEFT|RIGHT)?\s*(INNER|OUTER)?\s*JOIN)'
+    rJoins = r'(?P<type>(?:LEFT|RIGHT)?\s*(?:OUTER)?\s+JOIN)\s+(?P<name>'+rName+')'
+    joinsMatches = [(match.group("name"),match .group("type")) for match in re.finditer(rJoins,query,flags=re.I)]
+    # print(joinsMatches)
+    tableNames = []
+    f =open("db_updates.txt","a")
+    if re.search(rFrom,query,flags=re.I):
+        print("in")
+        print(re.search(rFrom,query,flags=re.I))
+        tmpTable = re.search(rFrom,query,flags=re.I).group("name")
+        for i in range(len(joinsMatches)):
+            table1 = tmpTable
+            table2 = joinsMatches[i][0]
+            tmpTable = table2
+            rel_type = joinsMatches[i][1]
+            if rel_type.lower()==' join':
+                rel_type='inner join'
+            relations.append((table1,table2,rel_type.upper()))
+        print(relations)
+    else:
+        f.write("----------------\n\n"+query+"\n\n---------------")
+        f.close()
+
+
+    return relations
+
+
 def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
     # Performs a secondary parse of the sql file, looking for select statements within objects.
     # When they are found, we look for a join statement. If we find one, we assume all the tables
@@ -330,159 +574,109 @@ def findJoins(filedir, name, other, tabdict, simple, neato, conn, edges):
     # them in a graphviz undirected graph. We display this to user and save it to disk. It can in
     # future be converted to a networkx graph easily to allow for graphical analysis to be performed.
 
-    lines = getLines(filedir)
+    lines = '\n'.join(getLines(filedir))
 
     createStatements = []
+    queriesStatements = []
     insideCreate = False
 
-    for i in range(len(lines)):
-        line = lines[i]
-        if re.match(r'\bCREATE\s+[a-zA-Z]+\s+', lines[i], re.I):
-            insideCreate = True
-            createStatements.append("")
-        elif re.match("GO",line,flags=re.I):
-            insideCreate = False
+    rName = '((?:(?:\[\s*)?[^\(\] \.\,\']+(?:\s*\])?)(?:\s*\.\s*(?:(?:\[\s*)?[^\(\] \.\,\']+(?:\s*\])?))*)'
 
-        if insideCreate:
-            createStatements[-1]+=line+'\n'
+    tables = open("db_tables.txt",'a')
+    tablesMatches = re.findall(r'CREATE\s+TABLE\s+'+rName, lines, flags=re.I)
+    for i in range(len(tablesMatches)):
+        tables.write(tablesMatches[i]+'\n')
+    print('Tables Length: '+str(len(tablesMatches)))
+    tables.close()
 
-    # file = open("create_statements.txt","w")
-    # for i in range(len(createStatements)):
-    #     file.write(createStatements[i]+"\n""\n""\n""\n""\n"+"----------------------------------------------------"+"\n""\n""\n""\n""\n")
-    #
-    # file.close()
-    #
-    # return
+    selects = open("db_selects.txt",'a')
+    selectsMatches =[match.group(0) for match in  re.finditer(r'\bSELECT\s+.+\s+(FROM(.+)(WHERE)?)?',lines,flags=re.I)]
+    selects.write('\n;\n'.join(selectsMatches))
+    print('Selects Length: '+str(len(selectsMatches)))
+    selects.close()
 
+    return
 
-    # The current list of regular expressions used to match tables. Needs to be expanded to account for all
-    # possible ways a table can be referenced in sql.
+    for i in range(len(createStatements)):
+        # linesList = createStatements[i].split("\n")
+        currentCreate = createStatements[i]
+        hasComment = re.search("--.+?(\n|\\n)",currentCreate,flags=re.I)
+        print(hasComment)
+        while hasComment:
+            currentCreate = currentCreate[:hasComment.start()]+'\n'+currentCreate[hasComment.end():]
+            hasComment = re.search("--.+?(\n|\\n)",currentCreate,flags=re.I)
 
-    rTableNames = [
-        # r'(?<!\S)(?:\[?\w+\]?)\.(?:\[?[^\(\)\s]+\]?)(?!\S)',
-        r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?(?!\.)',#one \ [one]
-        r'(?<=JOIN|FROM)(?:\s)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two \ [one].[two]
-        r'(?<=JOIN|FROM)(?:\s)\[\w+\]\.\w+(?!\.)',#[one].two
-        r'(?<!\S)\[?\w+\]?\.\[?\w+\]?(?!\.)',#one.two
-        r'(?<!\S)\w+\.\w+\.\w+(?!\.)',#one.two.three
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two]
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',#[one].[two].[three]
-        r'(?<!\S)\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\]\.\[[^\]+]+\](?!\.)',]#[one].[two].[three].[four]
-    rName = '(\[?[^\(\] \.\,\']+\]?)'
-    rFromNames  = r'FROM\s+?(?P<name>'+rName+'\s*\.\s*'+rName+'\s*\.\s*'+rName+'|'+rName+'\s*\.\s*'+rName+'|'+rName+')'
-    rJoinsNames  = r'JOIN\s+?(?P<name>'+rName+'\s*\.\s*'+rName+'\s*\.\s*'+rName+'|'+rName+'\s*\.\s*'+rName+'|'+rName+')'
-    rSubQuery  = r'JOIN\s+?(?P<name>'+rName+'\s*\.\s*'+rName+'\s*\.\s*'+rName+'|'+rName+'\s*\.\s*'+rName+'|'+rName+')'
-    # rJoinsNames  = r'(?P<rel_type>(INNER\s+)?JOIN|LEFT\s+(OUTER\s+)?JOIN|RIGHT\s+(OUTER\s+)?JOIN|FULL\s+(OUTER\s+)?JOIN)\s+?(?P<name>(\[?[^\(\] ]+\]?)\s*\.\s*(\[?[^\(\] ]+\]?)\s*\.\s*(\[?[^\(\] ]+\]?)|(\[?\S+\]?\s*\.\s*\[?[^\(\] ]+\]?)|(\[?[^\(\] ]+\]?))'
+        queryMatch = re.match(r"INSERT",currentCreate,flags=re.I)
+        if not queryMatch:
+            queryMatch = re.match(r"DELETE",currentCreate,flags=re.I)
+            if not queryMatch:
+                queryMatch = re.match(r"create[^\(]+?\(\s+select",currentCreate,flags=re.I)
+                if not queryMatch:
+                    queryMatch = re.match(r"SELECT",currentCreate,flags=re.I)
+                    subQueryMatch = re.match(r"\(\s*select",currentCreate,flags=re.I)
+                    if  not ((queryMatch and not subQueryMatch) or (queryMatch and queryMatch.end()!=subQueryMatch.end())):
+                        queryMatch = re.match(r"UPDATE",currentCreate,flags=re.I)
+        while queryMatch:
+            currentCreate= currentCreate[:queryMatch.start()]+' ; '+currentCreate[queryMatch.start():]
+            queryMatch = re.match(r"INSERT",currentCreate,flags=re.I)
+            if not queryMatch:
+                queryMatch = re.match(r"DELETE",currentCreate,flags=re.I)
+                if not queryMatch:
+                    queryMatch = re.match(r"create[^\(]+?\(\s+select",currentCreate,flags=re.I)
+                    if not queryMatch:
+                        queryMatch = re.match(r"SELECT",currentCreate,flags=re.I)
+                        subQueryMatch = re.match(r"\(\s*select",currentCreate,flags=re.I)
+                    if  not ((queryMatch and not subQueryMatch) or (queryMatch and queryMatch.end()!=subQueryMatch.end())):
+                            queryMatch = re.match(r"UPDATE",currentCreate,flags=re.I)
 
-    # list of colors used to color the graph created.
-    colors = ["red", "blue", "green", "yellow", "orange", "purple", "black", "brown", "cyan",
-              "pink", "magenta", "black", "chartreuse", "coral", "crimson", "chocolate", "indigo",
-              "fuchsia", "lime", "maroon", "olive", "navy", "teal", "yellowgreen", "rosybrown", "orangered", "orchid",
-              "tomato"]
-    colorIndex = 0
-    currentObjName = ""
-    currentObjType = ""
-    contextState = states.CONTEXT_STATE.INIT_STATE
-    currObjState = states.CURRENT_OBJ_STATE.NO_LABEL_STATE
-
-    objs = []
-    tmpTables = []
-
-    # Graph object that holds our graph.
-    graph = Graph(name + ".T", strict=True)
-    objsFile = open("db_objects.txt","w")
-    resultsFile = open("db_results.txt","w")
-    # Iterate through all of the lines of the sql file, looking for create statements for each of the objects we are looking for.
-    for j in range(len(createStatements)):
-        linesList = createStatements[j].split("\n")
-
-        currentObj = re.match(r"CREATE\s+?(?!TABLE)(?P<type>\w+)\s+?(?P<name>\[\S+\]\.\[[^\(\]]+\])",linesList[0],flags=re.I)
-        if(not currentObj):
-            print(linesList[0])
+        currentObj = re.search(r"CREATE\s+?(?!TABLE)(?P<type>\w+)\s+?(?P<name>"+rName+")",currentCreate,flags=re.I)
+        if not currentObj:
+            print(currentCreate)
         else:
-            objsFile.write(currentObj.group("name")+"  -  Type: "+currentObj.group("type")+"\n")
-            currentObjName = currentObj.group("name")
-            currentObjType = currentObj.group("type")
-            objs += {"name":currentObjName,"type":currentObjType,"relations":[]}   # example: each relation: {"type":"Inner Join", "tables":[]}
+            queriesStatements.append({"object_name":currentObj.group("name"),"object_type":currentObj.group("type"),"rawQueries":currentCreate.split(';'),"structuredQueries":[]})
 
+    d = date.today().strftime("%d-%m-%Y")
+    time = datetime.now().strftime("%H-%M")
 
-        for i in range(len(linesList)):
-            line = linesList[i]
-            if i == 0:
-                currObjState = states.CURRENT_OBJ_STATE.IN_CREATE_STATE
-                tmpTables=[]
+    resFile = open("results\\db_results "+d+" "+time+".txt","w")
+    for k in range(len(queriesStatements)):
+        for i in range(len(queriesStatements[k]["rawQueries"])):
+            query = queriesStatements[k]["rawQueries"][i]
 
+            if re.search("(insert|delete)",query,flags=re.I):
+                continue
+            queryMatch = re.match(r"SELECT",currentCreate,flags=re.I)
+            subQueryMatch = re.match(r"\(\s*select",currentCreate,flags=re.I)
+            if  not (queryMatch and (not subQueryMatch or queryMatch.end() != subQueryMatch.end())) or re.search("create[^\(]+?\(\s*select",query,flags=re.I):
+                queriesStatements[k]["structuredQueries"].append(handleSelectQuery(query))
 
+                for qIndex in range(len(queriesStatements[k]["structuredQueries"])):
+                    if queriesStatements[k]["structuredQueries"][qIndex] !=None and len(queriesStatements[k]["structuredQueries"][qIndex])>0:
+                        for counter in range(len(queriesStatements[k]["structuredQueries"][qIndex])):
+                            resFile.write(str(queriesStatements[k]["structuredQueries"][qIndex][counter])+"\n")
 
-            if contextState == states.CONTEXT_STATE.INIT_STATE and re.match(r"UPDATE",line,flags=re.I):
-                contextState = states.CONTEXT_STATE.UPDATE_STATE
+            if re.search("update",query,flags=re.I):
+                queriesStatements[k]["structuredQueries"].append(handleUpdateQuery(query))
 
-            if contextState == states.CONTEXT_STATE.UPDATE_STATE and re.match(r"SELECT",line,flags=re.I):
-                contextState = states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE
-                tmp = re.match(rFromNames,line,re.I)
-                if tmp  and tmp.group("name") not in tmpTables :
-                    tmpTables .append(tmp.group("name"))
-                    print("Match: "+line)
+                for qIndex in range(len(queriesStatements[k]["structuredQueries"])):
+                    if queriesStatements[k]["structuredQueries"][qIndex] !=None and len(queriesStatements[k]["structuredQueries"][qIndex])>0:
+                        for counter in range(len(queriesStatements[k]["structuredQueries"][qIndex])):
+                            resFile.write(str(queriesStatements[k]["structuredQueries"][qIndex][counter])+"\n")
 
-            if contextState == states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE and len(tmpTables) == 0:
-                tmp = re.match(rFromNames,line,re.I)
-                if tmp  and tmp.group("name") not in tmpTables :
-                    tmpTables.append(tmp.group("name"))
-                    print("Match: "+line)
+    resFile.close()
+    resFile = open("results\\db_results "+d+" "+time+".txt","r")
+    l = list(set(resFile.readlines()))
+    resFile.close()
+    resFile = open("results\\db_results "+d+" "+time+".txt","w")
+    for i in range(len(l)):
+        resFile.write(l[i])
+    resFile.close()
 
-            if contextState == states.CONTEXT_STAT
+    queriesFile = open("db_queries.txt","w")
+    for i in range(len(queriesStatements)):
+        queriesFile.write("\nBegin--------------\n\n"+str(queriesStatements[i])+"\n\nEnd------------------\n")
+    queriesFile.close()
 
-            if contextState == states.CONTEXT_STATE.SELECT_IN_UPDATE_STATE and len(tmpTables)>0:#and re.match("JOIN",line,flags=re.I):
-                tmp = re.search(rJoinsNames,line)
-                if not tmp:
-                    print("Tmp condition issue: "+str(tmp)+  line)
-                if tmp.group("name") in tmpTables:
-                    print("tmp.group condition issue")
-                if tmp  and tmp.group("name") not in tmpTables :
-                    tmpTables.append(tmp.group("name"))
-                    print("Match: "+line)
-
-            if contextState == states.CONTEXT_STATE.INIT_STATE and re.match(r"SELECT",line,flags=re.I):
-                contextState = states.CONTEXT_STATE.SELECT_STATE
-
-
-            if contextState == states.CONTEXT_STATE.SELECT_STATE and re.match(r"FROM",line,flags=re.I):
-                tmp = re.match(rFromNames,line,re.I)
-                if tmp  and tmp.group("name") not in tmpTables :
-                    tmpTables.append(tmp.group("name"))
-                    print("Match: "+line)
-
-            if contextState == states.CONTEXT_STATE.SELECT_STATE and len(tmpTables) == 0:
-                tmp = re.match(rFromNames,line,re.I)
-                if tmp  and tmp.group("name") not in tmpTables :
-                    tmpTables.append(tmp.group("name"))
-                    print("Match: "+line)
-
-            if contextState == states.CONTEXT_STATE.SELECT_STATE  and len(tmpTables)>0:#and re.match("JOIN",line,flags=re.I):
-                tmp = re.search(rJoinsNames,line)
-                if not tmp:
-                    print("Tmp condition issue: "+str(tmp) +  line)
-                elif tmp.group("name") in tmpTables:
-                    print("tmp.group condition issue")
-                if tmp and tmp.group("name") not in tmpTables :
-                    tmpTables.append(tmp.group("name"))
-                    print("Match: "+line)
-
-            if (len(tmpTables)>1 and (re.match(r"^GO$",line,flags=re.I) or re.match(r"DELETE",line,flags=re.I) or re.match(r"INSERT",line,flags=re.I))) or (contextState != states.CONTEXT_STATE.INIT_STATE and ( re.match(r"SET",line,flags=re.I) or re.match(r";",line,flags=re.I) )):
-                contextState = states.CONTEXT_STATE.INIT_STATE
-                if len(tmpTables)>1:
-                    objectMap = {"name":currentObjName,"relations":[]}
-                    for i in range(len(tmpTables)-1):
-                        objectMap["relations"].append ((tmpTables[i],tmpTables[i+1]))
-                    resultsFile.write(str(objectMap))
-                    resultsFile.write("\n\n-----------------------------------------\n\n")
-
-
-
-            if i==len(linesList)-1:
-                contextState = states.CONTEXT_STATE.INIT_STATE
-
-    objsFile.close()
 
 
 def findRef(regex, line, lines, endcon):
