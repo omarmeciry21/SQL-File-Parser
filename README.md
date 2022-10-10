@@ -1,16 +1,16 @@
-#Project Overview
+# Project Overview
 
 This project aims for generation a visual documentation for SQL-based databases. The programming language used is Python, the methodology used for query processing is Regular Expressions, and the library used for graphing is Graphviz. Using the 're' library for RegEx, go through the *.sql file and find table names and then search for the relations between tables and each other, the type of the relations, and the Data flow inside the DataBase. 
 
-#Project Steps & Functionalities in Details
+# Project Steps & Functionalities in Details
 
-##Finding DataBase Objects (completed)
+## Finding DataBase Objects (completed)
 
 The input given to the program is the path to the *.sql file containing the queries that construct our database, and the DataBase objects that the user want to retrieve, such as Trigger, View, Table, Procedure, etc. Then, the program reads the lines inside the *.sql file and loop through them. For each line, we use certain regular expression to find the DataBase object and its type. After finding them, we store them in dictionaries to present all the objects of the same type together in one dictionary.
 
 *This step can be found in Parser.py in find-type-() methods.*
 
-##Finding Relations Between Tables (In Progress)
+## Finding Relations Between Tables (In Progress)
 
 In this part, we try to find the relation between each table and all the other tables and their types. There are three types of relations:
 
